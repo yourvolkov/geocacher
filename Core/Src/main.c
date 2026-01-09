@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "ST7565.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -35,7 +35,7 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define BLINK_AMNT		5u
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -58,7 +58,12 @@ static void MX_USART1_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+void LED_Blink_init(void){
+	for(uint8_t i = 0u; i < BLINK_AMNT; i++){
+	    HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, HAL_GPIO_ReadPin(LED_GPIO_Port, LED_Pin) ^ 1);
+	    HAL_Delay(100u); /* 100ms */
+	}
+}
 /* USER CODE END 0 */
 
 /**
@@ -92,7 +97,9 @@ int main(void)
   MX_SPI1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  LED_Blink_init();
 
+  LCD_init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
