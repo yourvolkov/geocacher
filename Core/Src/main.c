@@ -35,7 +35,7 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-#define BLINK_AMNT		5u
+#define BLINK_AMNT		10u
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -63,6 +63,10 @@ void LED_Blink_init(void){
 	    HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, HAL_GPIO_ReadPin(LED_GPIO_Port, LED_Pin) ^ 1);
 	    HAL_Delay(100u); /* 100ms */
 	}
+}
+
+void LED_Blink(void){
+	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, HAL_GPIO_ReadPin(LED_GPIO_Port, LED_Pin) ^ 1);
 }
 /* USER CODE END 0 */
 
@@ -106,6 +110,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  LCD_test();
+	  LED_Blink();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -175,7 +181,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
