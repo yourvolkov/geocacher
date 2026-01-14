@@ -4,6 +4,7 @@
 #include "ST7565.h"
 #include "string.h"
 #include "stm32f1xx_hal.h"
+#include "font5x7.h"
 /******************************************************************************/
 /****************************** Deifnes ***************************************/
 /******************************************************************************/
@@ -132,8 +133,8 @@ void LCD_init(void){
 	/* Initialization procedure */
 	LCD_sendCmd(CMD_DISPLAY_BIAS_SET(0u));
 	LCD_sendCmd(CMD_DISPLAY_ADC_NORMAL);
-	LCD_sendCmd(CMD_DISPLAY_NORMAL); /*?*/
-	LCD_sendCmd(CMD_DISPLAY_COMMON_OTPUT_MODE_NORMAL);
+	LCD_sendCmd(CMD_DISPLAY_NORMAL); /* invertion of the pixels */
+	LCD_sendCmd(CMD_DISPLAY_COMMON_OTPUT_MODE_REVERSE); /* Normal: addressing starts from bottom left corner; Reverse: top left corner */
 
 	LCD_sendCmd(CMD_DISPLAY_VOLTAGE_REG_SET(0x3u));
 	LCD_sendCmd(CMD_DISPLAY_SET_VOLUME_1);
@@ -142,12 +143,13 @@ void LCD_init(void){
 	LCD_sendCmd(CMD_DISPLAY_POWER_CONTROL_SET(0x7u));
 
 	LCD_sendCmd(CMD_DISPLAY_ON);
+	LCD_clearScreen();
 	/* Test */
 //	LCD_sendCmd(CMD_DISPLAY_ALL_POINTS_ON);
 
 }
 
-
+/*----------------------------------------------------------------------------*/
 void LCD_test(void){
 	static uint8_t currColumn = 0u;
 	static uint8_t currLine = 0u;
@@ -171,9 +173,43 @@ void LCD_test(void){
 	LCD_sendCmd(CMD_DISPLAY_SET_COLUMN_L(0u));
 	LCD_sendCmd(CMD_DISPLAY_SET_COLUMN_H(0u));
 	LCD_sendData(&LCD_buf[currLine / 8][0u], LCD_COLUMN_AMNT);
-//	LCD_sendCmd(CMD_DISPLAY_OFF);
-//	LCD_sendCmd(CMD_DISPLAY_ON);
 
 	HAL_Delay(1u);
+}
+
+/*----------------------------------------------------------------------------*/
+void LCD_print_test(uint8_t cursorX, uint8_t cursorY, char* line, size_t len){
+	static char character = 0u;
+	uint8_t string_char = character;
+	for(uint8_t i = 0; i < 21; i++)
+	{
+		uint8_t pos = i * (FONT_CHAR_WIDTH + 1);
+		memcpy(&LCD_buf[cursorY][pos], &font_data[FONT_CHAR_WIDTH * string_char++], FONT_CHAR_WIDTH);
+		LCD_buf[cursorY][pos + FONT_CHAR_WIDTH] = 0u; /* Space between chars */
+	}
+	character++;
+	//memcpy(&LCD_buf[cursorY][0u], &font_data[FONT_CHAR_WIDTH * character++], LCD_COLUMN_AMNT);
+
+	LCD_sendCmd(CMD_DISPLAY_SET_PAGE(cursorY));
+	LCD_sendCmd(CMD_DISPLAY_SET_COLUMN_L(0u));
+	LCD_sendCmd(CMD_DISPLAY_SET_COLUMN_H(0u));
+	LCD_sendData(&LCD_buf[cursorY][0u], LCD_COLUMN_AMNT);
+}
+
+/*----------------------------------------------------------------------------*/
+void LCD_print(uint8_t cursorX, uint8_t cursorY, char* line, size_t len){
+	for(uint8_t i = 0; i < len; i++)
+	{
+		uint8_t pos = cursorX + (i * (FONT_CHAR_WIDTH + 1));
+		memcpy(&LCD_buf[cursorY][pos], &font_data[FONT_CHAR_WIDTH * (uint8_t)line[i]], FONT_CHAR_WIDTH);
+		LCD_buf[cursorY][pos + FONT_CHAR_WIDTH] = 0u; /* Space between chars */
+	}
+
+	//memcpy(&LCD_buf[cursorY][0u], &font_data[FONT_CHAR_WIDTH * character++], LCD_COLUMN_AMNT);
+
+	LCD_sendCmd(CMD_DISPLAY_SET_PAGE(cursorY));
+	LCD_sendCmd(CMD_DISPLAY_SET_COLUMN_L(0u));
+	LCD_sendCmd(CMD_DISPLAY_SET_COLUMN_H(0u));
+	LCD_sendData(&LCD_buf[cursorY][0u], LCD_COLUMN_AMNT);
 }
 /******************************************************************************/

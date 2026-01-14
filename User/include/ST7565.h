@@ -50,5 +50,7 @@ typedef enum{
 void LCD_init(void);
 
 void LCD_test(void);
+
+void LCD_print(uint8_t cursorX, uint8_t cursorY, char* line, size_t len);
 /******************************************************************************/
 #endif // __ST7565_H_

@@ -110,8 +110,13 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  LCD_test();
+//	  LCD_test();
+	  char testPrint[20u] = "Hello World!";
+	  char testPrintVer[20u] = "Geocacher ver0.1";
+	  LCD_print(28u, 3u, testPrint, 20u);
+	  LCD_print(20u, 4u, testPrintVer, 20u);
 	  LED_Blink();
+	  HAL_Delay(1000u); /* 1s */
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
