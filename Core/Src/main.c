@@ -102,8 +102,8 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   LED_Blink_init();
-
   LCD_init();
+  GPS_init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -229,6 +229,9 @@ static void MX_USART1_UART_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN USART1_Init 2 */
+
+  /* Enable the UART Data Register not empty Interrupt */
+  __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
 
   /* USER CODE END USART1_Init 2 */
 

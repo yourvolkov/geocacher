@@ -205,7 +205,6 @@ void LCD_print(uint8_t cursorX, uint8_t cursorY, char* line, size_t len){
 		LCD_buf[cursorY][pos + FONT_CHAR_WIDTH] = 0u; /* Space between chars */
 	}
 
-	//memcpy(&LCD_buf[cursorY][0u], &font_data[FONT_CHAR_WIDTH * character++], LCD_COLUMN_AMNT);
 
 	LCD_sendCmd(CMD_DISPLAY_SET_PAGE(cursorY));
 	LCD_sendCmd(CMD_DISPLAY_SET_COLUMN_L(0u));
