@@ -145,7 +145,7 @@ void LCD_init(void){
 	LCD_sendCmd(CMD_DISPLAY_ON);
 	LCD_clearScreen();
 	/* Test */
-//	LCD_sendCmd(CMD_DISPLAY_ALL_POINTS_ON);
+	//LCD_sendCmd(CMD_DISPLAY_ALL_POINTS_ON);
 
 }
 

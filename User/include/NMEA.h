@@ -21,11 +21,22 @@
 /******************************************************************************/
 /****************************** Deifnes ***************************************/
 /******************************************************************************/
-#define PASS	1u
-#define FAIL	0u
+
 /******************************************************************************/
 /****************************** Public types  *********************************/
 /******************************************************************************/
+typedef enum{
+	DATA_AVAILABLE = 0u,
+	DATA_NOT_AVAILABLE,
+	DATA_NOT_RELIABLE
+}dtQualifier;
+
+typedef struct{
+	dtQualifier qualifier;
+	char cardinalPoint;
+	uint8_t degree;
+	float minute;
+}dtNMEACoordinate;
 
 /******************************************************************************/
 /****************************** Externs ***************************************/
@@ -36,6 +47,12 @@
 /******************************************************************************/
 void GPS_init(void);
 void GPS_UART_IRQHandler(uint8_t receivedByte);
+void GPS_handle(void);
 
+void GPS_get_current_latitude(dtNMEACoordinate* currLatitude);
+void GPS_get_current_longitude(dtNMEACoordinate* currLongitude);
+void GPS_get_current_altitude(float* currAltitude);
+void GPS_get_current_speed(float* currSpeed);
+void GPS_get_current_satellite_amount(uint8_t* currSatAmnt);
 /******************************************************************************/
 #endif // __NMEA_H_

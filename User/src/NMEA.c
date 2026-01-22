@@ -3,6 +3,7 @@
 /******************************************************************************/
 #include "NMEA.h"
 #include "string.h"
+#include "Utils.h"
 #include "stm32f1xx_hal.h"
 
 /******************************************************************************/
@@ -11,6 +12,38 @@
 
 #define NMEA_MES_MAX_LEN   82u
 #define HAL_TIMEOUT    10u // 10ms
+#define MSG_TYPE_POS	2u
+#define MSG_TYPE_LEN	3u
+#define DEGREES_MAX_STRING    4 // DDD + \0 symb
+#define MINUTES_MAX_STRING    9 // ММ.МММММ + \0 symb
+#define LATITUDE_DEGREES_SYMB_AMNT	2
+#define LONGITUDE_DEGREES_SYMB_AMNT	3
+#define MINUTES_SYMB_AMNT	8 // ММ.МММММ
+
+#define DATA_FIELD_MAX_LEN	15u
+
+#define GGA_MES_TYPE	"GGA"
+#define GLL_MES_TYPE	"GLL"
+#define GSA_MES_TYPE	"GSA"
+#define GSV_MES_TYPE	"GSV"
+#define RMC_MES_TYPE	"RMC"
+#define VTG_MES_TYPE	"VTG"
+#define DHV_MES_TYPE	"DHV"
+#define GST_MES_TYPE	"GST"
+
+#define GLL_LATITUDE_FIELD_POS	1u
+#define GLL_LATITUDE_CARDINAL_FIELD_POS	2u
+#define GLL_LONGITUDE_FIELD_POS	3u
+#define GLL_LONGITUDE_CARDINAL_FIELD_POS	4u
+#define GLL_UTC_TIME_FIELD_POS	5u
+#define GLL_IS_DATA_RELIABLE_FIELD_POS	6u
+
+#define GSV_SATTELITE_AMNT_FIELD_POS	3u
+#define VTG_SPEED_KMH_FIELD_POS	7u
+#define GGA_ALTITUDE_FIELD_POS	9u
+
+#define GLL_DATA_RELIABLE_SYMB	'A'
+#define GLL_DATA_NOT_RELIABLE_SYMB	'V'
 /******************************************************************************/
 /****************************** Private types *********************************/
 /******************************************************************************/
@@ -32,12 +65,13 @@ typedef struct{
 	dtNMEAReceiveState receiveState;
 }dtNMEAReceiver;
 /*----------------------------------------------------------------------------*/
-typedef struct{
-	char cardinalPoint;
-	uint8_t degree;
-	float minute;
-}dtNMEACoordinate;
-
+typedef enum{
+	LATITUDE,
+	LONGITUDE,
+	SPEED,
+	ALTITUDE
+}dtNMEADataType;
+/*----------------------------------------------------------------------------*/
 typedef struct{
 	dtNMEACoordinate latitude;
 	dtNMEACoordinate longitude;
@@ -45,12 +79,16 @@ typedef struct{
 	float speed;
 	uint8_t satteliteAmount;
 	uint8_t isDataReliable;
+	uint8_t msgCounters[9u]; // for debug purposes
+	uint8_t latitudeRaw[DATA_FIELD_MAX_LEN]; // for debug purposes
+	uint8_t longitudeRaw[DATA_FIELD_MAX_LEN]; // for debug purposes
 }dtNMEAData;
 /******************************************************************************/
 /****************************** Globals ***************************************/
 /******************************************************************************/
 dtNMEAReceiver NMEAReceiver;
 dtNMEAData NMEAFineData;
+
 /******************************************************************************/
 /****************************** Externs ***************************************/
 /******************************************************************************/
@@ -66,19 +104,6 @@ dtNMEAData NMEAFineData;
 /******************************************************************************/
 /*************************** Private functions ********************************/
 /******************************************************************************/
-int8_t atoi_nibble_hex(uint8_t symb){
-	uint8_t nibbleDec = 0;
-	if((symb >= (uint8_t)'A') && (symb <= (uint8_t)'F')){
-		nibbleDec = 10u + (symb - (uint8_t)'A');
-	}else if((symb >= (uint8_t)'a') && (symb <= (uint8_t)'f')){
-		nibbleDec = 10u + (symb - (uint8_t)'a');
-	}else if((symb >= (uint8_t)'0') && (symb <= (uint8_t)'9')){
-		nibbleDec = symb - (uint8_t)'0';
-	}else{
-		return -1;
-	}
-	return (int8_t)nibbleDec;
-}
 
 /*----------------------------------------------------------------------------*/
 uint8_t NMEA_CrcCalc(dtNMEAReceiver* receiver){
@@ -89,6 +114,69 @@ uint8_t NMEA_CrcCalc(dtNMEAReceiver* receiver){
 	return crc;
 }
 
+/*----------------------------------------------------------------------------*/
+/*
+ * Example string: GNGLL,5546.95900,N,03740.69200,E,102030.000,A
+ * */
+uint8_t NMEA_getField(uint8_t* message, uint8_t message_len, uint8_t field_pos, uint8_t* field, uint8_t* field_len, uint8_t field_len_max){
+	uint8_t fields_cnt = 0u;
+	uint8_t field_start_pos = 0u;
+	uint8_t field_end_pos = (message_len - 1u);
+	uint8_t mes_len = 0u;
+
+	for(uint8_t i = 0; i < message_len; i++){
+		if(*(message + i) == ','){
+			fields_cnt++;
+			if(fields_cnt == field_pos){
+				/* Field start found */
+				field_start_pos = i + 1u;
+				mes_len = 0u;
+			}else if(fields_cnt == (field_pos + 1u)){
+				/* Field end found */
+				field_end_pos = i - 1u;
+				break;
+			}else{
+				/* Defensive programming */
+			}
+		}else{
+			mes_len++;
+		}
+	}
+
+	if((field_start_pos <= field_end_pos) && (fields_cnt > 0) && (mes_len < field_len_max) && (mes_len > 0u)){
+		/* Not an empty field */
+		*field_len = field_end_pos - field_start_pos + 1;
+		memcpy(field, (message + field_start_pos), *field_len);
+		return PASS;
+	}else{
+		return FAIL;
+	}
+}
+/*----------------------------------------------------------------------------*/
+
+void parse_float_data(uint8_t* field, dtNMEADataType type){
+	uint8_t degreesTmp[DEGREES_MAX_STRING] = {0u};
+	uint8_t minutesTmp[MINUTES_MAX_STRING] = {0u};
+
+	if(type == LATITUDE){
+		/* two first digits are degeees */
+		memcpy(degreesTmp, field, LATITUDE_DEGREES_SYMB_AMNT);
+		memcpy(minutesTmp, (field + LATITUDE_DEGREES_SYMB_AMNT), MINUTES_SYMB_AMNT);
+		NMEAFineData.latitude.degree = _atoi(degreesTmp);
+		NMEAFineData.latitude.minute = _atof(minutesTmp);
+		NMEAFineData.latitude.qualifier = NMEAFineData.isDataReliable ? DATA_AVAILABLE : DATA_NOT_RELIABLE;
+	}else if(type == LONGITUDE){
+		/* three first digits are degeees */
+		memcpy(degreesTmp, field, LONGITUDE_DEGREES_SYMB_AMNT);
+		memcpy(minutesTmp, (field + LONGITUDE_DEGREES_SYMB_AMNT), MINUTES_SYMB_AMNT);
+		NMEAFineData.longitude.degree = _atoi(degreesTmp);
+		NMEAFineData.longitude.minute = _atof(minutesTmp);
+		NMEAFineData.longitude.qualifier = NMEAFineData.isDataReliable ? DATA_AVAILABLE : DATA_NOT_RELIABLE;
+	}else{
+		/* Defensive programming */
+	}
+
+}
 /*----------------------------------------------------------------------------*/
 void receiveNMEAMessage(dtNMEAReceiver* receiver, uint8_t receivedByte){
 	int8_t crc1 = 0u, crc2 = 0u;
@@ -154,8 +242,106 @@ void receiveNMEAMessage(dtNMEAReceiver* receiver, uint8_t receivedByte){
 	}
 }
 /*----------------------------------------------------------------------------*/
-uint8_t parseNMEAMessage(dtNMEAData* Data, uint8_t rawMessage, uint8_t rawMessageLen){
+uint8_t parseNMEAMessage(dtNMEAData* Data, uint8_t* rawMessage, uint8_t rawMessageLen){
+	uint8_t* msgType = &rawMessage[MSG_TYPE_POS];
+	uint8_t field[DATA_FIELD_MAX_LEN] = {0u};
+	uint8_t field_len = 0u;
+	uint8_t ret = FAIL;
 
+	if(memcmp(msgType, GGA_MES_TYPE, MSG_TYPE_LEN) == 0u){
+		ret = NMEA_getField(rawMessage,
+							rawMessageLen,
+							GGA_ALTITUDE_FIELD_POS,
+							field,
+							&field_len,
+							DATA_FIELD_MAX_LEN);
+
+		if(ret == PASS){
+			field[field_len] = '\0';
+			NMEAFineData.altitude = _atof(field);
+		}
+
+		NMEAFineData.msgCounters[0u]++;
+	}else if(memcmp(msgType, GLL_MES_TYPE, MSG_TYPE_LEN) == 0u){
+		ret = NMEA_getField(rawMessage,
+							rawMessageLen,
+							GLL_LATITUDE_FIELD_POS,
+							field,
+							&field_len,
+							DATA_FIELD_MAX_LEN);
+		if(ret == PASS){
+			memcpy(NMEAFineData.latitudeRaw, field, field_len);
+			parse_float_data(field, LATITUDE);
+		}
+
+		ret = NMEA_getField(rawMessage,
+							rawMessageLen,
+							GLL_LONGITUDE_FIELD_POS,
+							field,
+							&field_len,
+							DATA_FIELD_MAX_LEN);
+		if(ret == PASS){
+			memcpy(NMEAFineData.longitudeRaw, field, field_len);
+			parse_float_data(field, LONGITUDE);
+		}
+
+		ret = NMEA_getField(rawMessage,
+							rawMessageLen,
+							GLL_IS_DATA_RELIABLE_FIELD_POS,
+							field,
+							&field_len,
+							DATA_FIELD_MAX_LEN);
+		if(ret == PASS){
+			if(field[0u] == GLL_DATA_RELIABLE_SYMB){
+				NMEAFineData.isDataReliable = PASS;
+			}else{
+				NMEAFineData.isDataReliable = FAIL;
+			}
+		}
+
+		NMEAFineData.msgCounters[1u]++;
+	}else if(memcmp(msgType, GSA_MES_TYPE, MSG_TYPE_LEN) == 0u){
+		NMEAFineData.msgCounters[2u]++;
+	}else if(memcmp(msgType, GSV_MES_TYPE, MSG_TYPE_LEN) == 0u){
+		ret = NMEA_getField(rawMessage,
+							rawMessageLen,
+							GSV_SATTELITE_AMNT_FIELD_POS,
+							field,
+							&field_len,
+							DATA_FIELD_MAX_LEN);
+
+		if(ret == PASS){
+			field[field_len] = '\0';
+			NMEAFineData.satteliteAmount = _atoi(field);
+		}
+
+		NMEAFineData.msgCounters[3u]++;
+	}else if(memcmp(msgType, RMC_MES_TYPE, MSG_TYPE_LEN) == 0u){
+		NMEAFineData.msgCounters[4u]++;
+	}else if(memcmp(msgType, VTG_MES_TYPE, MSG_TYPE_LEN) == 0u){
+		ret = NMEA_getField(rawMessage,
+							rawMessageLen,
+							VTG_SPEED_KMH_FIELD_POS,
+							field,
+							&field_len,
+							DATA_FIELD_MAX_LEN);
+
+		if(ret == PASS){
+			field[field_len] = '\0';
+			NMEAFineData.speed = _atof(field);
+		}
+
+		NMEAFineData.msgCounters[5u]++;
+	}else if(memcmp(msgType, DHV_MES_TYPE, MSG_TYPE_LEN) == 0u){
+		/* Message was never received */
+		NMEAFineData.msgCounters[6u]++;
+	}else if(memcmp(msgType, GST_MES_TYPE, MSG_TYPE_LEN) == 0u){
+		/* Message was never received */
+		NMEAFineData.msgCounters[7u]++;
+	}else{
+		NMEAFineData.msgCounters[8u]++;
+		/* unknown or unsupported message type */
+	}
 
 }
 /*----------------------------------------------------------------------------*/
@@ -172,14 +358,58 @@ void GPS_init(void){
 	NMEAReceiver.receivedCRC = 0u;
 	NMEAReceiver.receiveState = IDLE;
 
+	NMEAFineData.altitude = 0.0f;
+	NMEAFineData.isDataReliable = FAIL;
+
+	NMEAFineData.latitude.qualifier = DATA_NOT_AVAILABLE;
+	NMEAFineData.latitude.cardinalPoint = 'N';
+	NMEAFineData.latitude.degree = 0u;
+	NMEAFineData.latitude.minute = 0.0f;
+
+	NMEAFineData.longitude.qualifier = DATA_NOT_AVAILABLE;
+	NMEAFineData.longitude.cardinalPoint = 'E';
+	NMEAFineData.longitude.degree = 0u;
+	NMEAFineData.longitude.minute = 0.0f;
+	NMEAFineData.satteliteAmount = 0u;
+	NMEAFineData.speed = 0.0f;
+
 }
 /*----------------------------------------------------------------------------*/
 void GPS_UART_IRQHandler(uint8_t receivedByte){
 	receiveNMEAMessage(&NMEAReceiver, receivedByte);
 }
 /*----------------------------------------------------------------------------*/
-
+void GPS_handle(void){
+	if(NMEAReceiver.isMessageReceivedFlag == PASS){
+		parseNMEAMessage(&NMEAFineData, NMEAReceiver.NMEA_buf, NMEAReceiver.ReceiveDataCnt);
+		NMEAReceiver.isMessageReceivedFlag = FAIL;
+	}
+}
 
 /*----------------------------------------------------------------------------*/
+void GPS_get_current_latitude(dtNMEACoordinate* currLatitude){
+	*currLatitude = NMEAFineData.latitude;
 
+}
+
+/*----------------------------------------------------------------------------*/
+void GPS_get_current_longitude(dtNMEACoordinate* currLongitude){
+	*currLongitude = NMEAFineData.longitude;
+
+}
+
+/*----------------------------------------------------------------------------*/
+void GPS_get_current_altitude(float* currAltitude){
+	*currAltitude = NMEAFineData.altitude;
+}
+
+/*----------------------------------------------------------------------------*/
+void GPS_get_current_speed(float* currSpeed){
+	*currSpeed = NMEAFineData.speed;
+}
+
+/*----------------------------------------------------------------------------*/
+void GPS_get_current_satellite_amount(uint8_t* currSatAmnt){
+	*currSatAmnt = NMEAFineData.satteliteAmount;
+}
 /******************************************************************************/

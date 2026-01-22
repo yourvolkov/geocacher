@@ -22,6 +22,9 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "ST7565.h"
+#include "NMEA.h"
+#include "Utils.h"
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -104,19 +107,65 @@ int main(void)
   LED_Blink_init();
   LCD_init();
   GPS_init();
+
+  char title[25u] = "Current coordinates:";
+  char testPrintVer[20u] = "Geocacher ver0.2";
+  char lat[21] = {0u};
+  char longitude[21] = {0u};
+  char speed[21] = {0u};
+  char sat_amnt[21] = {0u};
+  char altitude[21] = {0u};
+  char tmpStr[10] = {0u};
+
+  dtNMEACoordinate lati, longi;
+  float speed_f, alti;
+  uint8_t sat_amnt_ui;
+
+  LCD_print(18u, 0u, testPrintVer, 20u);
+  LCD_print(0u, 2u, title, 20u);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//	  LCD_test();
-	  char testPrint[20u] = "Hello World!";
-	  char testPrintVer[20u] = "Geocacher ver0.1";
-	  LCD_print(28u, 3u, testPrint, 20u);
-	  LCD_print(20u, 4u, testPrintVer, 20u);
+
+	  GPS_handle();
 	  LED_Blink();
-	  HAL_Delay(1000u); /* 1s */
+
+	  GPS_get_current_latitude(&lati);
+	  GPS_get_current_longitude(&longi);
+	  GPS_get_current_altitude(&alti);
+	  GPS_get_current_speed(&speed_f);
+	  GPS_get_current_satellite_amount(&sat_amnt_ui);
+
+	  if(lati.qualifier == DATA_NOT_AVAILABLE || longi.qualifier == DATA_NOT_AVAILABLE){
+		  LCD_print(1u, 4u, "LOW SIGNAL!", strlen("Low signal!"));
+		  sprintf(sat_amnt, "Satellites: %d", sat_amnt_ui);
+		  LCD_print(1u, 6u, sat_amnt, strlen(sat_amnt));
+	  }else{
+		  print_float(tmpStr, lati.minute, 3u);
+		  sprintf(lat, "%d %s' %c", lati.degree, tmpStr, lati.cardinalPoint);
+
+		  print_float(tmpStr, longi.minute, 3u);
+		  sprintf(longitude, "%d %s' %c", longi.degree, tmpStr, longi.cardinalPoint);
+
+		  print_float(tmpStr, alti, 1u);
+		  sprintf(altitude, "Altitude: %s m", tmpStr);
+
+		  print_float(tmpStr, speed_f, 1u);
+		  sprintf(speed, "Speed: %s km/h", tmpStr);
+		  sprintf(sat_amnt, "Satellites: %d", sat_amnt_ui);
+		  LCD_print(1u, 3u, lat, strlen(lat));
+		  LCD_print(1u, 4u, longitude, strlen(longitude));
+		  LCD_print(1u, 5u, altitude, strlen(altitude));
+		  LCD_print(1u, 6u, speed, strlen(speed));
+		  LCD_print(1u, 7u, sat_amnt, strlen(sat_amnt));
+	  }
+
+
+//	  HAL_Delay(1000u); /* 1s */
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
