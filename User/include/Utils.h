@@ -20,9 +20,9 @@
 /******************************************************************************/
 /****************************** Deifnes ***************************************/
 /******************************************************************************/
-#define UTIL_SET_BIT(reg, pos)       reg |= (1 << pos)
-#define UTIL_CLEAR_BIT(reg, pos)     reg &= ~(1 << pos)
-#define UTIL_READ_BIT(reg, pos)     (reg & (1 << pos))
+#define UTIL_SET_BIT(reg, pos)       (reg) |= (1 << (pos))
+#define UTIL_CLEAR_BIT(reg, pos)     (reg) &= ~(1 << (pos))
+#define UTIL_READ_BIT(reg, pos)     ((reg) & (1 << (pos)))
 
 #define PASS	1u
 #define FAIL	0u

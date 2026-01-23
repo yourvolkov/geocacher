@@ -108,6 +108,7 @@ int main(void)
   LCD_init();
   GPS_init();
 
+#if 0
   char title[25u] = "Current coordinates:";
   char testPrintVer[20u] = "Geocacher ver0.2";
   char lat[21] = {0u};
@@ -123,7 +124,7 @@ int main(void)
 
   LCD_print(18u, 0u, testPrintVer, 20u);
   LCD_print(0u, 2u, title, 20u);
-
+#endif
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -133,7 +134,7 @@ int main(void)
 
 	  GPS_handle();
 	  LED_Blink();
-
+#if 0
 	  GPS_get_current_latitude(&lati);
 	  GPS_get_current_longitude(&longi);
 	  GPS_get_current_altitude(&alti);
@@ -163,8 +164,36 @@ int main(void)
 		  LCD_print(1u, 6u, speed, strlen(speed));
 		  LCD_print(1u, 7u, sat_amnt, strlen(sat_amnt));
 	  }
+#else
+	  /* Test to draw line in all directions */
+#if 0
+	  for(uint8_t x_start = 127; x_start > 0; x_start--){
+			  LCD_draw_line(x_start,0, 127 - x_start, 63);
+			  HAL_Delay(100u);
+			  LCD_clearScreen();
+	   }
+	   for(uint8_t y_start = 63; y_start > 0; y_start--){
+			  LCD_draw_line(0 ,63 - y_start, 127, y_start);
+			  HAL_Delay(100u);
+			  LCD_clearScreen();
+	   }
 
 
+	   for(uint8_t i = 0u; i < 255 ; i++){
+		   static float ang = 0.0;
+	       LCD_draw_rectangle(30,20,80,40, ang);
+	       ang += 0.08;
+	       HAL_Delay(1000u);
+	       LCD_clearScreen();
+	   }
+#else
+		/* test */
+		convert_horizontal_bitmap(lcd_bitmap, lcd_bitmap_inv, 64, 64);
+	   LCD_draw_bitmap(0,0,64,64, lcd_bitmap_inv);
+#endif
+//	  LCD_draw_line(0,0, 127, 63);
+
+#endif
 //	  HAL_Delay(1000u); /* 1s */
     /* USER CODE END WHILE */
 
