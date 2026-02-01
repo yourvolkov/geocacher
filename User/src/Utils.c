@@ -18,6 +18,7 @@
 /****************************** Globals ***************************************/
 /******************************************************************************/
 const char numbers[10u] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
+uint32_t delayCnt = 0u;
 /******************************************************************************/
 /****************************** Externs ***************************************/
 /******************************************************************************/
@@ -146,5 +147,48 @@ void print_float(char* str, float num, uint8_t precision){
 	num -= (float)int_part; /* only fract part left */
 	fract_part = num * _pow(10u, precision);
 	sprintf(str, "%d.%d", int_part, fract_part);
+}
+
+/*----------------------------------------------------------------------------*/
+uint8_t majority_function(uint8_t* middle_sample){
+	return 	( (*middle_sample)&(*(middle_sample - 1)) )|
+			( (*(middle_sample - 1))&(*(middle_sample + 1)) )|
+			( (*middle_sample)&(*(middle_sample + 1)) );
+}
+
+/*----------------------------------------------------------------------------*/
+/* Custom delay functions
+/*----------------------------------------------------------------------------*/
+
+uint8_t _setDelay(uint32_t delayMs){
+	if(delayCnt){
+		/* Another delay is in progress */
+		return FAIL;
+	}else{
+		delayCnt = delayMs;
+		return PASS;
+	}
+}
+
+void _clearDelay(void){
+	delayCnt = 0u;
+}
+
+uint8_t _isDelayExpired(void){
+	if(!delayCnt){
+		return PASS;
+	}else{
+		return FAIL;
+	}
+}
+
+void _Delay(uint32_t delayMs){
+	while(delayCnt);
+}
+
+void _Delay1ms_tick_hanlder(void){
+	if(delayCnt){
+		delayCnt--;
+	}
 }
 /******************************************************************************/

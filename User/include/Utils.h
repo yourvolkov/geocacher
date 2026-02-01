@@ -43,5 +43,13 @@ int _atoi(uint8_t* str);
 float _atof(uint8_t* str);
 void print_float(char* str, float num, uint8_t precision);
 
+uint8_t majority_function(uint8_t* middle_sample);
+
+uint8_t _setDelay(uint32_t delayMs);
+void _clearDelay(void);
+uint8_t _isDelayExpired(void);
+void _Delay(uint32_t delayMs);
+void _Delay1ms_tick_hanlder(void);
+
 /******************************************************************************/
 #endif // __UTILS_H_

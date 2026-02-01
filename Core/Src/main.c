@@ -44,6 +44,8 @@
 /* Private variables ---------------------------------------------------------*/
  SPI_HandleTypeDef hspi1;
 
+TIM_HandleTypeDef htim2;
+
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
@@ -55,6 +57,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -103,11 +106,20 @@ int main(void)
   MX_GPIO_Init();
   MX_SPI1_Init();
   MX_USART1_UART_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   LED_Blink_init();
   LCD_init();
   GPS_init();
+  KY040_Init(0, -255, 255);
 
+  convert_horizontal_bitmap(lcd_bitmap, lcd_bitmap_inv, 46, 64);
+  convert_horizontal_bitmap(lcd_arrow, lcd_arrow_conv, 20, 15);
+
+  int8_t x = 10, y = 10;
+  int8_t dir_x= 1, dir_y = 1;
+  uint8_t R = 10;
+  int cur_enc = 0u;
 #if 0
   char title[25u] = "Current coordinates:";
   char testPrintVer[20u] = "Geocacher ver0.2";
@@ -133,7 +145,6 @@ int main(void)
   {
 
 	  GPS_handle();
-	  LED_Blink();
 #if 0
 	  GPS_get_current_latitude(&lati);
 	  GPS_get_current_longitude(&longi);
@@ -188,8 +199,58 @@ int main(void)
 	   }
 #else
 		/* test */
-		convert_horizontal_bitmap(lcd_bitmap, lcd_bitmap_inv, 64, 64);
-	   LCD_draw_bitmap(0,0,64,64, lcd_bitmap_inv);
+	   /*
+		   for(uint8_t i = 0u; i < 255 ; i++){
+			   static float ang = 0.08;
+			   //LCD_draw_bitmap(40,0,48,64, lcd_bitmap_inv, ang);
+			   //LCD_draw_rectangle(30,20,80,40, ang);
+			   //LCD_draw_bitmap(40,16,48,32, lcd_arrow_conv, ang);
+//			   LCD_draw_line_with_thikness(5,5,120, 60, i);
+//			   LCD_draw_circle(64, 32, 10, 1);
+			   LCD_draw_rectangle(30,20,80,40, ang, 1);
+		       ang += 0.08;
+//		       HAL_Delay(1000u);
+		       LCD_clearScreen();
+		   }
+		   */
+		   KY040_Hanlder();
+
+		   if(KY040_isEncoderValueChanged() == PASS){
+			   cur_enc = KY040_get_enc_current_value();
+			   LCD_clearScreen();
+			   static float ang = 0.0;
+			   ang = 0.08 * cur_enc;
+
+			   LCD_draw_rectangle(30,20,80,40, ang, 1);
+			   KY040_encoderValueChangedClearFlag();
+		   }
+		   if(KY040_isButtonPressed() == PASS){
+				  LED_Blink();
+				  KY040_set_enc_default_value(0u);
+				  KY040_buttonPressedClearFlag();
+		   }
+
+
+#if 0
+		   LCD_draw_circle(x, y, R, 1);
+		   HAL_Delay(50u);
+		   LCD_clearScreen();
+		   x += (dir_x * 1u);
+		   y += (dir_y * 1u);
+
+		   if((x - R) <= 0){
+			   dir_x = 1;
+		   }else if((x + R) >= 127){
+			   dir_x = -1;
+		   }
+
+		   if((y - R) <= 0){
+			   dir_y = 1;
+		   }else if((y + R) >= 63){
+			   dir_y = -1;
+		   }
+#endif
+
 #endif
 //	  LCD_draw_line(0,0, 127, 63);
 
@@ -280,6 +341,64 @@ static void MX_SPI1_Init(void)
 }
 
 /**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 0;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 739;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_OC_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_TIMING;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_OC_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+  HAL_TIM_Base_Start_IT(&htim2);
+  /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
   * @brief USART1 Initialization Function
   * @param None
   * @retval None
@@ -328,6 +447,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
@@ -349,10 +469,35 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : ENC_BUTTON_Pin */
+  GPIO_InitStruct.Pin = ENC_BUTTON_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(ENC_BUTTON_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : ENC_DT_Pin */
+  GPIO_InitStruct.Pin = ENC_DT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(ENC_DT_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : ENC_CLK_Pin */
+  GPIO_InitStruct.Pin = ENC_CLK_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(ENC_CLK_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
 }
 
 /* USER CODE BEGIN 4 */
-
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	EXTI_ISR_Handler(GPIO_Pin);
+}
 /* USER CODE END 4 */
 
 /**

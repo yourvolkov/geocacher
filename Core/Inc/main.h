@@ -73,6 +73,14 @@ void Error_Handler(void);
 #define GPS_TX_GPIO_Port GPIOA
 #define GPS_RX_Pin GPIO_PIN_10
 #define GPS_RX_GPIO_Port GPIOA
+#define ENC_BUTTON_Pin GPIO_PIN_7
+#define ENC_BUTTON_GPIO_Port GPIOB
+#define ENC_BUTTON_EXTI_IRQn EXTI9_5_IRQn
+#define ENC_DT_Pin GPIO_PIN_8
+#define ENC_DT_GPIO_Port GPIOB
+#define ENC_CLK_Pin GPIO_PIN_9
+#define ENC_CLK_GPIO_Port GPIOB
+#define ENC_CLK_EXTI_IRQn EXTI9_5_IRQn
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
