@@ -107,6 +107,7 @@ void EXTI_ISR_Handler(uint16_t GPIO_Pin){
 		button.button_flag = PASS;
 	}else if(GPIO_Pin == CLK_PIN){
 		if(encoder.Clk_flag == FAIL){
+		    encoder.enc_samples_cnt = 0u;
 			encoder.enc_clk_samples[encoder.enc_samples_cnt] = HAL_GPIO_ReadPin(CLK_PORT, CLK_PIN);
 			encoder.enc_dt_samples[encoder.enc_samples_cnt] = HAL_GPIO_ReadPin(DT_PORT, DT_PIN);
 			encoder.enc_samples_cnt++;
@@ -159,13 +160,12 @@ void KY040_Hanlder(void){
 		case ENC_IDLE:
 			if(encoder.Clk_flag == PASS){
 				encoder.EncState = ENC_DEBOUNCE;
-				encoder.enc_samples_cnt = 0u;
 			}
 			break;
 		case ENC_DEBOUNCE:
 			if(encoder.enc_samples_cnt == ENCODER_DEBOUNCE_SAMPLES_AMNT){
-				if(!majority_function(&encoder.enc_clk_samples[2u])){
-					if(majority_function(&encoder.enc_dt_samples[2u])){
+				if(!majority_function(&encoder.enc_clk_samples[1u])){  /* 1u - index of the "middle" sample */
+					if(majority_function(&encoder.enc_dt_samples[1u])){
 						if(encoder.enc_current_value > encoder.enc_min_value){
 							encoder.enc_current_value--;
 							encoder.enc_value_updated_flag = PASS;

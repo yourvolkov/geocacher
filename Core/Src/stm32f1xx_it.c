@@ -241,6 +241,7 @@ void USART1_IRQHandler(void)
     	uint8_t receivedByte = huart1.Instance->DR;
     	/* Call GPS UART handler */
     	GPS_UART_IRQHandler(receivedByte);
+    	return;
     }
   /* USER CODE END USART1_IRQn 0 */
   HAL_UART_IRQHandler(&huart1);

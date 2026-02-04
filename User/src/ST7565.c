@@ -48,7 +48,7 @@
 
 
 #define HAL_TIMEOUT    10u // 10ms
-
+#define _135_GRAD_TO_RAD (2.35619f)
 /******************************************************************************/
 /****************************** Private types *********************************/
 /******************************************************************************/
@@ -127,6 +127,7 @@ dtReturnValue LCD_sendData(uint8_t* data, uint16_t data_len){
 	retVal = HAL_SPI_Transmit(&hspi1, data, data_len, HAL_TIMEOUT);
 	HAL_GPIO_WritePin(CS_PORT, CS_PIN, GPIO_PIN_SET);
 
+	return OK;
 }
 /*----------------------------------------------------------------------------*/
 dtReturnValue LCD_sendCmd(uint8_t cmd){
@@ -157,6 +158,32 @@ void convert_horizontal_bitmap(uint8_t* in, uint8_t* out, uint8_t w, uint8_t h){
 		if(UTIL_READ_BIT(*(in + in_pos), 7 - k)){
 					UTIL_SET_BIT(*(out + out_pos), row % 8);
 		}
+	}
+}
+
+/*----------------------------------------------------------------------------*/
+int _sort_points_by_x(const void* A, const void* B){
+	point* tmpA = (point*)A;
+	point* tmpB = (point*)B;
+	if(tmpA->x > tmpB->x){
+		return 1u;
+	}else if(tmpA->x < tmpB->x){
+		return -1;
+	}else{
+		return 0;
+	}
+}
+
+/*----------------------------------------------------------------------------*/
+int _sort_points_by_y(const void* A, const void* B){
+	point* tmpA = (point*)A;
+	point* tmpB = (point*)B;
+	if(tmpA->y > tmpB->y){
+		return 1u;
+	}else if(tmpA->y < tmpB->y){
+		return -1;
+	}else{
+		return 0;
 	}
 }
 /******************************************************************************/
@@ -498,40 +525,88 @@ uint8_t LCD_get_X_of_point_on_line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y
 /*  vertex -> vertices */
 
 void fill_rectangle(point rectangle_vertices[4]){
-	uint8_t upper_cornerX = 0u, upper_cornerY = 0u;
 	uint8_t lines_to_draw = 0u;
 	uint8_t X1 = 0u, X2 = 0u;
 	point upper_pointY, lower_pointY, upper_pointX, lower_pointX;
+	uint8_t is_lower_vertex_dublicated = FAIL;
 
-	for(uint8_t i = 0; i < 4; i++){
-		if(rectangle_vertices[i].y > upper_cornerY){
-			upper_cornerY = rectangle_vertices[i].y;
-			upper_pointY = rectangle_vertices[i];
-			lower_pointY = rectangle_vertices[(i + 2) % 4]; /* The oposite point */
-		}
+	point vertices_sorted_by_x[4u];
+	point vertices_sorted_by_y[4u];
+
+	memcpy(vertices_sorted_by_x, rectangle_vertices, sizeof(point) * 4u);
+	memcpy(vertices_sorted_by_y, rectangle_vertices, sizeof(point) * 4u);
+
+	qsort((void*)vertices_sorted_by_x, 4u, sizeof(point), _sort_points_by_x);
+	qsort((void*)vertices_sorted_by_y, 4u, sizeof(point), _sort_points_by_y);
+
+	if(vertices_sorted_by_x[0].x == vertices_sorted_by_x[1].x || vertices_sorted_by_x[2].x == vertices_sorted_by_x[3].x ||
+	   vertices_sorted_by_y[0].y == vertices_sorted_by_y[1].y || vertices_sorted_by_y[2].y == vertices_sorted_by_y[3].y){
+		is_lower_vertex_dublicated = PASS;
 	}
 
-	for(uint8_t i = 0; i < 4; i++){
-		if(rectangle_vertices[i].x > upper_cornerX){
-			upper_cornerX = rectangle_vertices[i].x;
-			upper_pointX = rectangle_vertices[i];
-			lower_pointX = rectangle_vertices[(i + 2) % 4]; /* The oposite point */
-		}
-	}
+	lower_pointY = vertices_sorted_by_y[0];
+	upper_pointY = vertices_sorted_by_y[3]; /* The oposite point */
+	lower_pointX = vertices_sorted_by_x[0];
+	upper_pointX = vertices_sorted_by_x[3]; /* The oposite point */
 
 	lines_to_draw = upper_pointY.y - lower_pointY.y;
 	for(uint8_t i = 0; i < lines_to_draw; i++){
 		uint8_t currY = lower_pointY.y + i;
-		X1 = LCD_get_X_of_point_on_line(lower_pointY.x, lower_pointY.y, lower_pointX.x, lower_pointX.y, currY); /* Refactor that part */
-		if(X1 <= lower_pointX.x && currY >= lower_pointX.y){
-			X1 = LCD_get_X_of_point_on_line(upper_pointY.x, upper_pointY.y, lower_pointX.x, lower_pointX.y, currY);
+		if(is_lower_vertex_dublicated == FAIL){
+			X1 = LCD_get_X_of_point_on_line(lower_pointY.x, lower_pointY.y, lower_pointX.x, lower_pointX.y, currY); /* Refactor that part */
+			if(X1 <= lower_pointX.x && currY >= lower_pointX.y){
+				X1 = LCD_get_X_of_point_on_line(upper_pointY.x, upper_pointY.y, lower_pointX.x, lower_pointX.y, currY);
+			}
+			X2 = LCD_get_X_of_point_on_line(lower_pointY.x, lower_pointY.y, upper_pointX.x, upper_pointX.y, currY);
+			if(X2 >= upper_pointX.x && currY >= upper_pointX.y){
+				X2 = LCD_get_X_of_point_on_line(upper_pointY.x, upper_pointY.y, upper_pointX.x, upper_pointX.y, currY);
+			}
+		}else{
+			X1 = lower_pointX.x;
+			X2 = upper_pointX.x;
 		}
-		X2 = LCD_get_X_of_point_on_line(lower_pointY.x, lower_pointY.y, upper_pointX.x, upper_pointX.y, currY);
-		if(X2 >= upper_pointX.x && currY >= upper_pointX.y){
-			X2 = LCD_get_X_of_point_on_line(upper_pointY.x, upper_pointY.y, upper_pointX.x, upper_pointX.y, currY);
+		LCD_draw_line(X1, currY, X2, currY);
+	}
+}
+
+/*----------------------------------------------------------------------------*/
+void fill_triangle(point triangle_vertices[3]){
+	uint8_t lines_to_draw = 0u;
+	uint8_t X1 = 0u, X2 = 0u;
+	point vertices_sorted_by_y[3u];
+	uint8_t is_lower_vertex_dublicated = FAIL;
+
+	memcpy(vertices_sorted_by_y, triangle_vertices, sizeof(point) * 3u);
+	qsort((void*)vertices_sorted_by_y, 3u, sizeof(point), _sort_points_by_y);
+
+	if(vertices_sorted_by_y[0u].y == vertices_sorted_by_y[1u].y){
+		is_lower_vertex_dublicated = PASS;
+	}
+
+	lines_to_draw = vertices_sorted_by_y[2].y - vertices_sorted_by_y[0].y;
+	if(is_lower_vertex_dublicated == FAIL){
+		for(uint8_t i = 0; i < lines_to_draw; i++){
+			uint8_t currY = vertices_sorted_by_y[0].y + i;
+
+			X1 = LCD_get_X_of_point_on_line(vertices_sorted_by_y[0].x, vertices_sorted_by_y[0].y, vertices_sorted_by_y[1].x, vertices_sorted_by_y[1].y, currY);
+			if(X1 <= vertices_sorted_by_y[1].x && currY >= vertices_sorted_by_y[1].y){
+				X1 = LCD_get_X_of_point_on_line(vertices_sorted_by_y[1].x, vertices_sorted_by_y[1].y, vertices_sorted_by_y[2].x, vertices_sorted_by_y[2].y, currY);
+			}
+
+			X2 = LCD_get_X_of_point_on_line(vertices_sorted_by_y[0].x, vertices_sorted_by_y[0].y, vertices_sorted_by_y[2].x, vertices_sorted_by_y[2].y, currY);
+
+			if(X2 >= vertices_sorted_by_y[2].x && currY >= vertices_sorted_by_y[2].y){
+				X2 = LCD_get_X_of_point_on_line(vertices_sorted_by_y[0].x, vertices_sorted_by_y[0].y, vertices_sorted_by_y[1].x, vertices_sorted_by_y[1].y, currY);
+			}
+
+			LCD_draw_line(X1, currY, X2, currY);
 		}
-		for(uint8_t j = X1; j <= X2; j++){
-			LCD_draw_pixel (j, currY);
+	}else{
+		for(uint8_t i = 0; i < lines_to_draw; i++){
+			uint8_t currY = vertices_sorted_by_y[0].y + i;
+			X1 = LCD_get_X_of_point_on_line(vertices_sorted_by_y[2].x, vertices_sorted_by_y[2].y, vertices_sorted_by_y[1].x, vertices_sorted_by_y[1].y, currY);
+			X2 = LCD_get_X_of_point_on_line(vertices_sorted_by_y[2].x, vertices_sorted_by_y[2].y, vertices_sorted_by_y[0].x, vertices_sorted_by_y[0].y, currY);
+			LCD_draw_line(X1, currY, X2, currY);
 		}
 	}
 }
@@ -547,8 +622,8 @@ void rotate_point(uint8_t x, uint8_t y,
 	x_tmp = (x - origin_x) * rotate_cos - (y - origin_y) * rotate_sin;
 	y_tmp = (x - origin_x) * rotate_sin + (y - origin_y) * rotate_cos;
 
-	x_tmp = floor(x_tmp);
-	y_tmp = floor(y_tmp);
+	x_tmp = round(x_tmp);
+	y_tmp = round(y_tmp);
 
 	*res_x = x_tmp + origin_x;
 	if(*res_x > LCD_COLUMN_AMNT){
@@ -672,5 +747,106 @@ void LCD_draw_circle(uint8_t X0, uint8_t Y0, uint8_t R, uint8_t isFilled){
 		}
 		x++;
 	}
+}
+
+/*----------------------------------------------------------------------------*/
+void LCD_draw_triangle(uint8_t x, uint8_t y, uint8_t width, uint8_t height, float rotation, uint8_t isFilled){
+	point vertices[3u] = {{x, y}, {x, y + height}, {x + width, y}};
+	if(rotation){
+		point rotated_vertices[3u] = {0u};
+		uint8_t centerX = 0u, centerY = 0u;
+		/* Calculate coordinates of the center */
+		float A1, B1, C1;
+		float A2, B2, C2;
+		float D;
+
+		point median1[2u] = {{x, y + (height / 2u)}, {x + width, y}};
+		point median2[2u] = {{x, y + height}, {x + (width / 2), y}};
+
+		A1 = median1[1u].y - median1[0u].y; // A = y2 - y1
+		B1 = median1[0u].x - median1[1u].x; // B = x2 - x1
+		C1 = ((-1)* A1 * median1[0u].x ) - (B1 * median1[0u].y); // C = -A*x1 -B*y1
+
+		A2 = median2[1u].y - median2[0u].y; // A = y2 - y1
+		B2 = median2[0u].x - median2[1u].x; // B = x2 - x1
+		C2 = ((-1)* A2 * median2[0u].x ) - (B2 * median2[0u].y); // C = -A*x1 -B*y1
+
+		D = (A1 * B2) - (A2 * B1);
+
+		if(D){
+			float centX_f, centY_f;
+			centX_f = ((B1 * C2) - (B2 * C1)) / D;
+			centY_f = ((C1 * A2) - (C2 * A1)) / D;
+
+			centerX = round(centX_f);
+			centerY = round(centY_f);
+		}
+
+		/* Calculate roatation matrix */
+
+		float _sin = sin(rotation);
+		float _cos = cos(rotation);
+
+		rotate_point(vertices[0u].x, vertices[0u].y, centerX, centerY, _sin, _cos, &rotated_vertices[0u].x, &rotated_vertices[0u].y);
+		rotate_point(vertices[1u].x, vertices[1u].y, centerX, centerY, _sin, _cos, &rotated_vertices[1u].x, &rotated_vertices[1u].y);
+		rotate_point(vertices[2u].x, vertices[2u].y, centerX, centerY, _sin, _cos, &rotated_vertices[2u].x, &rotated_vertices[2u].y);
+
+
+		LCD_draw_line(rotated_vertices[0u].x, rotated_vertices[0u].y, rotated_vertices[1u].x, rotated_vertices[1u].y);
+		LCD_draw_line(rotated_vertices[0u].x, rotated_vertices[0u].y, rotated_vertices[2u].x, rotated_vertices[2u].y);
+		LCD_draw_line(rotated_vertices[1u].x, rotated_vertices[1u].y, rotated_vertices[2u].x, rotated_vertices[2u].y);
+		if(isFilled){
+			/* Fill triangle! */
+			fill_triangle(rotated_vertices);
+		}
+	}else{
+
+		LCD_draw_line(vertices[0u].x, vertices[0u].y, vertices[1u].x, vertices[1u].y);
+		LCD_draw_line(vertices[0u].x, vertices[0u].y, vertices[2u].x, vertices[2u].y);
+		LCD_draw_line(vertices[1u].x, vertices[1u].y, vertices[2u].x, vertices[2u].y);
+
+		if(isFilled){
+			for(uint8_t i = y; i <= y + height; i++){
+				uint8_t EOL = LCD_get_X_of_point_on_line(vertices[1u].x, vertices[1u].y, vertices[2u].x, vertices[2u].y, i);
+				LCD_draw_line(x, i, EOL, i);
+			}
+		}
+	}
+}
+
+/*----------------------------------------------------------------------------*/
+void LCD_draw_arrow(uint8_t x, uint8_t y, uint8_t width, uint8_t height, float rotation, uint8_t isFilled){
+
+	/* !!!isFilled arg is not used at the moment, arrow will be always filled!!! */
+
+	/* Here some const params which responsible for arrow proportions */
+	uint8_t rectangle_width = (float)(height) * 0.5f;
+	uint8_t rectangle_len = (float)(width) * 0.5f;
+	uint8_t overlay = 2u; // in pixels to fix some glitches with rotation
+
+
+	point vertices[3u] = {{x + rectangle_len - overlay, y}, {x + width, y + height/2}, {x + rectangle_len - overlay, y + height}};
+	point rotated_vertices[3u] = {0u};
+	uint8_t centerX = x + width/2, centerY = y + height/2;
+
+	point rectangle_vertices[4u] = {{x, y + (height - rectangle_width)/2},{x + rectangle_len, y + (height - rectangle_width)/2},{x + rectangle_len, (y + height) - (height - rectangle_width)/2}, {x,  (y + height) - (height - rectangle_width)/2}};
+	point rotated_rectangle_vertices[4u] = {0u};
+
+	float _sin = sin(rotation);
+	float _cos = cos(rotation);
+
+	rotate_point(vertices[0u].x, vertices[0u].y, centerX, centerY, _sin, _cos, &rotated_vertices[0u].x, &rotated_vertices[0u].y);
+	rotate_point(vertices[1u].x, vertices[1u].y, centerX, centerY, _sin, _cos, &rotated_vertices[1u].x, &rotated_vertices[1u].y);
+	rotate_point(vertices[2u].x, vertices[2u].y, centerX, centerY, _sin, _cos, &rotated_vertices[2u].x, &rotated_vertices[2u].y);
+
+	rotate_point(rectangle_vertices[0].x, rectangle_vertices[0].y, centerX, centerY, _sin, _cos, &rotated_rectangle_vertices[0u].x, &rotated_rectangle_vertices[0u].y);
+	rotate_point(rectangle_vertices[1].x, rectangle_vertices[1].y, centerX, centerY, _sin, _cos, &rotated_rectangle_vertices[1u].x, &rotated_rectangle_vertices[1u].y);
+	rotate_point(rectangle_vertices[2].x, rectangle_vertices[2].y, centerX, centerY, _sin, _cos, &rotated_rectangle_vertices[2u].x, &rotated_rectangle_vertices[2u].y);
+	rotate_point(rectangle_vertices[3].x, rectangle_vertices[3].y, centerX, centerY, _sin, _cos, &rotated_rectangle_vertices[3u].x, &rotated_rectangle_vertices[3u].y);
+
+
+	fill_triangle(rotated_vertices);
+	fill_rectangle(rotated_rectangle_vertices);
+
 }
 /******************************************************************************/

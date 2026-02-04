@@ -219,9 +219,11 @@ int main(void)
 			   cur_enc = KY040_get_enc_current_value();
 			   LCD_clearScreen();
 			   static float ang = 0.0;
-			   ang = 0.08 * cur_enc;
+			   ang = 0.08/*0.785398*/ * cur_enc;
 
-			   LCD_draw_rectangle(30,20,80,40, ang, 1);
+			   //LCD_draw_rectangle(30,20,80,40, ang, 1);
+			   //LCD_draw_triangle(63, 31, 15, 15, ang, 1);
+			   LCD_draw_arrow(48, 16, 30, 30, ang, 1);
 			   KY040_encoderValueChangedClearFlag();
 		   }
 		   if(KY040_isButtonPressed() == PASS){
