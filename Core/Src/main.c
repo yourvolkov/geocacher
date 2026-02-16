@@ -24,6 +24,8 @@
 #include "ST7565.h"
 #include "NMEA.h"
 #include "Utils.h"
+#include "KY040.h"
+#include "Geocacher.h"
 #include "string.h"
 /* USER CODE END Includes */
 
@@ -89,7 +91,7 @@ int main(void)
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+   HAL_Init();
 
   /* USER CODE BEGIN Init */
 
@@ -110,33 +112,14 @@ int main(void)
   /* USER CODE BEGIN 2 */
   LED_Blink_init();
   LCD_init();
+  Display_Init();
   GPS_init();
+  Geocacher_Init();
   KY040_Init(0, -255, 255);
 
   convert_horizontal_bitmap(lcd_bitmap, lcd_bitmap_inv, 46, 64);
   convert_horizontal_bitmap(lcd_arrow, lcd_arrow_conv, 20, 15);
 
-  int8_t x = 10, y = 10;
-  int8_t dir_x= 1, dir_y = 1;
-  uint8_t R = 10;
-  int cur_enc = 0u;
-#if 0
-  char title[25u] = "Current coordinates:";
-  char testPrintVer[20u] = "Geocacher ver0.2";
-  char lat[21] = {0u};
-  char longitude[21] = {0u};
-  char speed[21] = {0u};
-  char sat_amnt[21] = {0u};
-  char altitude[21] = {0u};
-  char tmpStr[10] = {0u};
-
-  dtNMEACoordinate lati, longi;
-  float speed_f, alti;
-  uint8_t sat_amnt_ui;
-
-  LCD_print(18u, 0u, testPrintVer, 20u);
-  LCD_print(0u, 2u, title, 20u);
-#endif
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -145,119 +128,11 @@ int main(void)
   {
 
 	  GPS_handle();
-#if 0
-	  GPS_get_current_latitude(&lati);
-	  GPS_get_current_longitude(&longi);
-	  GPS_get_current_altitude(&alti);
-	  GPS_get_current_speed(&speed_f);
-	  GPS_get_current_satellite_amount(&sat_amnt_ui);
+	  KY040_Hanlder();
+	  LCD_Handler();
+	  Geocacher_Handler();
+	  LCD_updateScreen();
 
-	  if(lati.qualifier == DATA_NOT_AVAILABLE || longi.qualifier == DATA_NOT_AVAILABLE){
-		  LCD_print(1u, 4u, "LOW SIGNAL!", strlen("Low signal!"));
-		  sprintf(sat_amnt, "Satellites: %d", sat_amnt_ui);
-		  LCD_print(1u, 6u, sat_amnt, strlen(sat_amnt));
-	  }else{
-		  print_float(tmpStr, lati.minute, 3u);
-		  sprintf(lat, "%d %s' %c", lati.degree, tmpStr, lati.cardinalPoint);
-
-		  print_float(tmpStr, longi.minute, 3u);
-		  sprintf(longitude, "%d %s' %c", longi.degree, tmpStr, longi.cardinalPoint);
-
-		  print_float(tmpStr, alti, 1u);
-		  sprintf(altitude, "Altitude: %s m", tmpStr);
-
-		  print_float(tmpStr, speed_f, 1u);
-		  sprintf(speed, "Speed: %s km/h", tmpStr);
-		  sprintf(sat_amnt, "Satellites: %d", sat_amnt_ui);
-		  LCD_print(1u, 3u, lat, strlen(lat));
-		  LCD_print(1u, 4u, longitude, strlen(longitude));
-		  LCD_print(1u, 5u, altitude, strlen(altitude));
-		  LCD_print(1u, 6u, speed, strlen(speed));
-		  LCD_print(1u, 7u, sat_amnt, strlen(sat_amnt));
-	  }
-#else
-	  /* Test to draw line in all directions */
-#if 0
-	  for(uint8_t x_start = 127; x_start > 0; x_start--){
-			  LCD_draw_line(x_start,0, 127 - x_start, 63);
-			  HAL_Delay(100u);
-			  LCD_clearScreen();
-	   }
-	   for(uint8_t y_start = 63; y_start > 0; y_start--){
-			  LCD_draw_line(0 ,63 - y_start, 127, y_start);
-			  HAL_Delay(100u);
-			  LCD_clearScreen();
-	   }
-
-
-	   for(uint8_t i = 0u; i < 255 ; i++){
-		   static float ang = 0.0;
-	       LCD_draw_rectangle(30,20,80,40, ang);
-	       ang += 0.08;
-	       HAL_Delay(1000u);
-	       LCD_clearScreen();
-	   }
-#else
-		/* test */
-	   /*
-		   for(uint8_t i = 0u; i < 255 ; i++){
-			   static float ang = 0.08;
-			   //LCD_draw_bitmap(40,0,48,64, lcd_bitmap_inv, ang);
-			   //LCD_draw_rectangle(30,20,80,40, ang);
-			   //LCD_draw_bitmap(40,16,48,32, lcd_arrow_conv, ang);
-//			   LCD_draw_line_with_thikness(5,5,120, 60, i);
-//			   LCD_draw_circle(64, 32, 10, 1);
-			   LCD_draw_rectangle(30,20,80,40, ang, 1);
-		       ang += 0.08;
-//		       HAL_Delay(1000u);
-		       LCD_clearScreen();
-		   }
-		   */
-		   KY040_Hanlder();
-
-		   if(KY040_isEncoderValueChanged() == PASS){
-			   cur_enc = KY040_get_enc_current_value();
-			   LCD_clearScreen();
-			   static float ang = 0.0;
-			   ang = 0.08/*0.785398*/ * cur_enc;
-
-			   //LCD_draw_rectangle(30,20,80,40, ang, 1);
-			   //LCD_draw_triangle(63, 31, 15, 15, ang, 1);
-			   LCD_draw_arrow(48, 16, 30, 30, ang, 1);
-			   KY040_encoderValueChangedClearFlag();
-		   }
-		   if(KY040_isButtonPressed() == PASS){
-				  LED_Blink();
-				  KY040_set_enc_default_value(0u);
-				  KY040_buttonPressedClearFlag();
-		   }
-
-
-#if 0
-		   LCD_draw_circle(x, y, R, 1);
-		   HAL_Delay(50u);
-		   LCD_clearScreen();
-		   x += (dir_x * 1u);
-		   y += (dir_y * 1u);
-
-		   if((x - R) <= 0){
-			   dir_x = 1;
-		   }else if((x + R) >= 127){
-			   dir_x = -1;
-		   }
-
-		   if((y - R) <= 0){
-			   dir_y = 1;
-		   }else if((y + R) >= 63){
-			   dir_y = -1;
-		   }
-#endif
-
-#endif
-//	  LCD_draw_line(0,0, 127, 63);
-
-#endif
-//	  HAL_Delay(1000u); /* 1s */
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

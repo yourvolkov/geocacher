@@ -177,6 +177,11 @@ void KY040_Hanlder(void){
 						}
 					}
 				}
+				_setDelay(JITTER_POST_DEBOUNCE_ENCODER);
+				encoder.EncState = ENC_POST_DEBOUNCE;
+			}
+		case ENC_POST_DEBOUNCE:
+			if(_isDelayExpired() == PASS){
 				encoder.EncState = ENC_IDLE;
 				encoder.Clk_flag = FAIL;
 				encoder.enc_samples_cnt = 0u;
