@@ -69,8 +69,6 @@ void LCD_updateScreen(void);
 
 void LCD_test(void);
 
-void LCD_draw_pixel(uint8_t x, uint8_t y);
-void LCD_draw_line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2);
 
 void LCD_draw_circle(uint8_t X0, uint8_t Y0, uint8_t R, uint8_t isFilled);
 void LCD_draw_triangle(uint8_t x, uint8_t y, uint8_t width, uint8_t height, float rotation, uint8_t isFilled);
@@ -99,5 +97,9 @@ uint16_t add_rectangle_entity_to_frame(dtFrame* frame, uint8_t x1, uint8_t y1, u
 uint8_t update_rectangle_entity_position(dtFrame* frame, uint16_t id, uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2);
 uint8_t update_rectangle_entity_rotation(dtFrame* frame, uint16_t id, float rotation);
 uint8_t update_rectangle_entity_filled(dtFrame* frame, uint16_t id, uint8_t isFilled);
+
+uint16_t add_navigation_arrow_entity_to_frame(dtFrame* frame, uint8_t x, uint8_t y, uint8_t width, uint8_t height, float rotation);
+uint8_t update_navigation_arrow_entity_position(dtFrame* frame, uint16_t id, uint8_t x, uint8_t y);
+uint8_t update_navigation_arrow_entity_rotation(dtFrame* frame, uint16_t id, float rotation);
 /******************************************************************************/
 #endif // __ST7565_H_

@@ -71,7 +71,8 @@ typedef enum{
 	TRIANGLE,
 	ARROW,
 	POINT,
-	BITMAP
+	BITMAP,
+	NAVIGATION_ARROW
 }dtEntityType;
 
 /*----------------------------------------------------------------------------*/
@@ -129,6 +130,13 @@ typedef struct{ // size 12
 }dtPropertyRectangle;
 
 typedef struct{ // size 8
+	dtPoint vertex;
+	uint8_t width;
+	uint8_t height;
+	float rotation;
+}dtPropertyNavigationArrow;
+
+typedef struct{ // size 8
 	uint8_t* bitmap;
 	uint8_t width;
 	uint8_t height;
@@ -141,6 +149,7 @@ typedef union{
 	dtPropertyLine Line;
 	dtPropertyRectangle Rectangle;
 	dtPropertyBitmap Bitmap;
+	dtPropertyNavigationArrow NavigationArrow;
 }dtEntityProperties;
 
 /*----------------------------------------------------------------------------*/
@@ -177,6 +186,10 @@ extern SPI_HandleTypeDef hspi1;
 /******************************************************************************/
 /********************** Private functions prototypes **************************/
 /******************************************************************************/
+void LCD_draw_pixel(uint8_t x, uint8_t y);
+void LCD_clear_pixel(uint8_t x, uint8_t y);
+void LCD_draw_line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, uint8_t isInversed);
+
 dtReturnRenderArea LCD_print(uint8_t cursorX, uint8_t cursorY, char* line, size_t len, uint8_t isInversed);
 dtReturnRenderArea LCD_draw_bitmap(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint8_t* bitmap);
 dtReturnRenderArea LCD_draw_rectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, float rotation, uint8_t isFilled);
@@ -600,7 +613,7 @@ dtReturnRenderArea LCD_draw_bitmap(uint8_t x, uint8_t y, uint8_t width, uint8_t 
 /*
  * According to Bresenham's line algorithm
  * */
-void LCD_draw_line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2){
+void LCD_draw_line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, uint8_t isInversed){
 	uint8_t delta_x = abs(x2 - x1);
 	uint8_t delta_y = abs(y2 - y1);
 	int16_t error = 0u;
@@ -657,9 +670,17 @@ void LCD_draw_line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2){
 
 	for(; x <= line_end; x++){
 		if(!main_dir){
-			LCD_draw_pixel(x, y);
+			if(!isInversed){
+				LCD_draw_pixel(x, y);
+			}else{
+				LCD_clear_pixel(x, y);
+			}
 		}else{
-			LCD_draw_pixel(y, x);
+			if(!isInversed){
+				LCD_draw_pixel(y, x);
+			}else{
+				LCD_clear_pixel(y, x);
+			}
 		}
 
 		error += coef;
@@ -712,12 +733,12 @@ void fill_rectangle(dtPoint rectangle_vertices[4]){
 			X1 = lower_pointX.x;
 			X2 = upper_pointX.x;
 		}
-		LCD_draw_line(X1, currY, X2, currY);
+		LCD_draw_line(X1, currY, X2, currY, FAIL);
 	}
 }
 /*----------------------------------------------------------------------------*/
 
-void fill_triangle(dtPoint triangle_vertices[3]){
+void fill_triangle(dtPoint triangle_vertices[3], uint8_t isInversed){
 	uint8_t lines_to_draw = 0u;
 	uint8_t X1 = 0u, X2 = 0u;
 	dtPoint vertices_sorted_by_y[3u];
@@ -746,14 +767,14 @@ void fill_triangle(dtPoint triangle_vertices[3]){
 				X2 = LCD_get_X_of_point_on_line(vertices_sorted_by_y[0].x, vertices_sorted_by_y[0].y, vertices_sorted_by_y[1].x, vertices_sorted_by_y[1].y, currY);
 			}
 
-			LCD_draw_line(X1, currY, X2, currY);
+			LCD_draw_line(X1, currY, X2, currY, isInversed);
 		}
 	}else{
 		for(uint8_t i = 0; i < lines_to_draw; i++){
 			uint8_t currY = vertices_sorted_by_y[0].y + i;
 			X1 = LCD_get_X_of_point_on_line(vertices_sorted_by_y[2].x, vertices_sorted_by_y[2].y, vertices_sorted_by_y[1].x, vertices_sorted_by_y[1].y, currY);
 			X2 = LCD_get_X_of_point_on_line(vertices_sorted_by_y[2].x, vertices_sorted_by_y[2].y, vertices_sorted_by_y[0].x, vertices_sorted_by_y[0].y, currY);
-			LCD_draw_line(X1, currY, X2, currY);
+			LCD_draw_line(X1, currY, X2, currY, isInversed);
 		}
 	}
 }
@@ -781,10 +802,10 @@ dtReturnRenderArea LCD_draw_rectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_
 		rotate_point(x1, y2, centerX, centerY, _sin, _cos, &rectangle_vertices[3u].x, &rectangle_vertices[3u].y);
 
 		if(!isFilled){
-			LCD_draw_line(rectangle_vertices[0u].x, rectangle_vertices[0u].y, rectangle_vertices[1u].x, rectangle_vertices[1u].y);
-			LCD_draw_line(rectangle_vertices[1u].x, rectangle_vertices[1u].y, rectangle_vertices[2u].x, rectangle_vertices[2u].y);
-			LCD_draw_line(rectangle_vertices[2u].x, rectangle_vertices[2u].y, rectangle_vertices[3u].x, rectangle_vertices[3u].y);
-			LCD_draw_line(rectangle_vertices[3u].x, rectangle_vertices[3u].y, rectangle_vertices[0u].x, rectangle_vertices[0u].y);
+			LCD_draw_line(rectangle_vertices[0u].x, rectangle_vertices[0u].y, rectangle_vertices[1u].x, rectangle_vertices[1u].y, FAIL);
+			LCD_draw_line(rectangle_vertices[1u].x, rectangle_vertices[1u].y, rectangle_vertices[2u].x, rectangle_vertices[2u].y, FAIL);
+			LCD_draw_line(rectangle_vertices[2u].x, rectangle_vertices[2u].y, rectangle_vertices[3u].x, rectangle_vertices[3u].y, FAIL);
+			LCD_draw_line(rectangle_vertices[3u].x, rectangle_vertices[3u].y, rectangle_vertices[0u].x, rectangle_vertices[0u].y, FAIL);
 		}else{
 			fill_rectangle(rectangle_vertices);
 		}
@@ -800,10 +821,10 @@ dtReturnRenderArea LCD_draw_rectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_
 
 	}else{
 		if(!isFilled){
-			LCD_draw_line(x1, y1, x2, y1);
-			LCD_draw_line(x2, y1, x2, y2);
-			LCD_draw_line(x2, y2, x1, y2);
-			LCD_draw_line(x1, y2, x1, y1);
+			LCD_draw_line(x1, y1, x2, y1, FAIL);
+			LCD_draw_line(x2, y1, x2, y2, FAIL);
+			LCD_draw_line(x2, y2, x1, y2, FAIL);
+			LCD_draw_line(x1, y2, x1, y1, FAIL);
 		}else{
 			uint8_t lines_to_draw = 0u;
 			uint8_t len = 0u;
@@ -836,7 +857,7 @@ dtReturnRenderArea LCD_draw_rectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_
 				ret_render_area.x2 = x2;
 			}
 			for(uint8_t i = y_start; i <= y_start + lines_to_draw; i++){
-				LCD_draw_line(x_start, i, x_start + len, i);
+				LCD_draw_line(x_start, i, x_start + len, i, FAIL);
 			}
 		}
 	}
@@ -926,23 +947,23 @@ void LCD_draw_triangle(uint8_t x, uint8_t y, uint8_t width, uint8_t height, floa
 		rotate_point(vertices[2u].x, vertices[2u].y, centerX, centerY, _sin, _cos, &rotated_vertices[2u].x, &rotated_vertices[2u].y);
 
 
-		LCD_draw_line(rotated_vertices[0u].x, rotated_vertices[0u].y, rotated_vertices[1u].x, rotated_vertices[1u].y);
-		LCD_draw_line(rotated_vertices[0u].x, rotated_vertices[0u].y, rotated_vertices[2u].x, rotated_vertices[2u].y);
-		LCD_draw_line(rotated_vertices[1u].x, rotated_vertices[1u].y, rotated_vertices[2u].x, rotated_vertices[2u].y);
+		LCD_draw_line(rotated_vertices[0u].x, rotated_vertices[0u].y, rotated_vertices[1u].x, rotated_vertices[1u].y, FAIL);
+		LCD_draw_line(rotated_vertices[0u].x, rotated_vertices[0u].y, rotated_vertices[2u].x, rotated_vertices[2u].y, FAIL);
+		LCD_draw_line(rotated_vertices[1u].x, rotated_vertices[1u].y, rotated_vertices[2u].x, rotated_vertices[2u].y, FAIL);
 		if(isFilled){
 			/* Fill triangle! */
-			fill_triangle(rotated_vertices);
+			fill_triangle(rotated_vertices, FAIL);
 		}
 	}else{
 
-		LCD_draw_line(vertices[0u].x, vertices[0u].y, vertices[1u].x, vertices[1u].y);
-		LCD_draw_line(vertices[0u].x, vertices[0u].y, vertices[2u].x, vertices[2u].y);
-		LCD_draw_line(vertices[1u].x, vertices[1u].y, vertices[2u].x, vertices[2u].y);
+		LCD_draw_line(vertices[0u].x, vertices[0u].y, vertices[1u].x, vertices[1u].y, FAIL);
+		LCD_draw_line(vertices[0u].x, vertices[0u].y, vertices[2u].x, vertices[2u].y, FAIL);
+		LCD_draw_line(vertices[1u].x, vertices[1u].y, vertices[2u].x, vertices[2u].y, FAIL);
 
 		if(isFilled){
 			for(uint8_t i = y; i <= y + height; i++){
 				uint8_t EOL = LCD_get_X_of_point_on_line(vertices[1u].x, vertices[1u].y, vertices[2u].x, vertices[2u].y, i);
-				LCD_draw_line(x, i, EOL, i);
+				LCD_draw_line(x, i, EOL, i, FAIL);
 			}
 		}
 	}
@@ -979,9 +1000,63 @@ void LCD_draw_arrow(uint8_t x, uint8_t y, uint8_t width, uint8_t height, float r
 	rotate_point(rectangle_vertices[3].x, rectangle_vertices[3].y, centerX, centerY, _sin, _cos, &rotated_rectangle_vertices[3u].x, &rotated_rectangle_vertices[3u].y);
 
 
-	fill_triangle(rotated_vertices);
+	fill_triangle(rotated_vertices, FAIL);
 	fill_rectangle(rotated_rectangle_vertices);
 
+}
+/*----------------------------------------------------------------------------*/
+
+dtReturnRenderArea LCD_draw_navigation_arrow(uint8_t x, uint8_t y, uint8_t width, uint8_t height, float rotation){
+	dtReturnRenderArea ret_render_area = {0u, 0u, 0u, 0u};
+	dtPoint renderArea_vertices[4u];
+	uint8_t pageBegin = 0u;
+	uint8_t pageEnd = 0u;
+
+	/* Here some const params which responsible for arrow proportions */
+	uint8_t inner_triangle_len = (float)(width) * 0.4f;
+
+
+	dtPoint vertices_outer_triangle[3u] = {{x, y}, {x + width, y + height/2}, {x, y + height}};
+	dtPoint vertices_inner_triangle[3u] = {{x, y}, {x + inner_triangle_len, y + height/2}, {x, y + height}};
+	dtPoint rotated_vertices_outer_triangle[3u] = {0u};
+	dtPoint rotated_vertices_inner_triangle[3u] = {0u};
+	uint8_t centerX = x + width/2, centerY = y + height/2;
+
+	float _sin = sin(rotation);
+	float _cos = cos(rotation);
+
+	rotate_point(vertices_outer_triangle[0u].x, vertices_outer_triangle[0u].y, centerX, centerY, _sin, _cos, &rotated_vertices_outer_triangle[0u].x, &rotated_vertices_outer_triangle[0u].y);
+	rotate_point(vertices_outer_triangle[1u].x, vertices_outer_triangle[1u].y, centerX, centerY, _sin, _cos, &rotated_vertices_outer_triangle[1u].x, &rotated_vertices_outer_triangle[1u].y);
+	rotate_point(vertices_outer_triangle[2u].x, vertices_outer_triangle[2u].y, centerX, centerY, _sin, _cos, &rotated_vertices_outer_triangle[2u].x, &rotated_vertices_outer_triangle[2u].y);
+
+	/* Just one additional point has to be rotated for inner triangle */
+	rotate_point(vertices_inner_triangle[1u].x, vertices_inner_triangle[1u].y, centerX, centerY, _sin, _cos, &rotated_vertices_inner_triangle[1u].x, &rotated_vertices_inner_triangle[1u].y);
+	rotated_vertices_inner_triangle[0u] = rotated_vertices_outer_triangle[0u];
+	rotated_vertices_inner_triangle[2u] = rotated_vertices_outer_triangle[2u];
+
+	fill_triangle(rotated_vertices_outer_triangle, FAIL);
+	fill_triangle(rotated_vertices_inner_triangle, PASS);
+
+
+	/* Calculate a render area by x */
+	renderArea_vertices[0u] = rotated_vertices_outer_triangle[0u];
+	renderArea_vertices[1u] = rotated_vertices_outer_triangle[2u];
+	rotate_point(x + width, y, centerX, centerY, _sin, _cos, &renderArea_vertices[2u].x, &renderArea_vertices[2u].y);
+	rotate_point(x + width, y + height, centerX, centerY, _sin, _cos, &renderArea_vertices[3u].x, &renderArea_vertices[3u].y);
+
+	qsort((void*)renderArea_vertices, 4u, sizeof(dtPoint), _sort_points_by_x);
+	ret_render_area.x1 = renderArea_vertices[0u].x;
+	ret_render_area.x2 = renderArea_vertices[3u].x + 1; /* Clear 1 pixel more to remove some glitches */
+	/* Calculate a render area by y */
+	qsort((void*)renderArea_vertices, 4u, sizeof(dtPoint), _sort_points_by_y);
+	ret_render_area.y1 = renderArea_vertices[0u].y;
+	ret_render_area.y2 = renderArea_vertices[3u].y + 1; /* Clear 1 pixel more to remove some glitches */
+
+	pageBegin = ret_render_area.y1 / PAGE_LEN;
+	pageEnd = (ret_render_area.y2 / PAGE_LEN); // ???
+	LCD_setUpdateArea(pageBegin, pageEnd, ret_render_area.x1, ret_render_area.x2);
+
+	return ret_render_area;
 }
 /******************************************************************************/
 /**************************** Public functions ********************************/
@@ -1251,6 +1326,13 @@ void render_entity(void* entity, uint8_t isForceRender){
 											currEntity->properties.Bitmap.height,
 											currEntity->properties.Bitmap.bitmap);
 
+		}else if(currEntity->main.type == NAVIGATION_ARROW){
+			/* Render bitmap */
+			RenderArea = LCD_draw_navigation_arrow(	currEntity->properties.NavigationArrow.vertex.x,
+													currEntity->properties.NavigationArrow.vertex.y,
+													currEntity->properties.NavigationArrow.width,
+													currEntity->properties.NavigationArrow.height,
+													currEntity->properties.NavigationArrow.rotation);
 		}
 
 		if(RenderArea.x2 != 0 && RenderArea.y2 != 0){
@@ -1490,6 +1572,60 @@ uint8_t update_rectangle_entity_filled(dtFrame* frame, uint16_t id, uint8_t isFi
 		dtEntity* currEntity = (dtEntity*)frame->entities[i];
 		if((currEntity->main.id == id) && (currEntity->main.type == RECTANGLE)){
 			currEntity->properties.Rectangle.isFilled = isFilled;
+			currEntity->status.status = RENDER_PENDING;
+			frame->status = RENDER_PENDING;
+			return PASS;
+		}
+	}
+	return FAIL;
+}
+
+
+/*----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
+
+uint16_t add_navigation_arrow_entity_to_frame(dtFrame* frame, uint8_t x, uint8_t y, uint8_t width, uint8_t height, float rotation){
+	dtEntity* newEntity = NULL;
+	uint16_t retID = 0xFFFFu;
+	if(frame->entities_cnt < MAX_ENTITIES_ON_SINGLE_FRAME - 1){
+		if(allocate_entity(&newEntity) == PASS){
+			newEntity->main.type = NAVIGATION_ARROW;
+			newEntity->properties.NavigationArrow.vertex.x = x;
+			newEntity->properties.NavigationArrow.vertex.y = y;
+			newEntity->properties.NavigationArrow.width = width;
+			newEntity->properties.NavigationArrow.height = height;
+			newEntity->properties.NavigationArrow.rotation = rotation;
+
+			newEntity->status.status = NOT_RENDERED;
+
+			frame->entities[frame->entities_cnt++] = (void*)newEntity;
+
+			retID = newEntity->main.id;
+		}
+	}
+	return retID;
+}
+
+/*----------------------------------------------------------------------------*/
+uint8_t update_navigation_arrow_entity_position(dtFrame* frame, uint16_t id, uint8_t x, uint8_t y){
+	for(uint8_t i = 0u; i < frame->entities_cnt; i++){
+		dtEntity* currEntity = (dtEntity*)frame->entities[i];
+		if((currEntity->main.id == id) && (currEntity->main.type == NAVIGATION_ARROW)){
+			currEntity->properties.NavigationArrow.vertex.x = x;
+			currEntity->properties.NavigationArrow.vertex.y = y;
+			currEntity->status.status = RENDER_PENDING;
+			frame->status = RENDER_PENDING;
+			return PASS;
+		}
+	}
+	return FAIL;
+}
+/*----------------------------------------------------------------------------*/
+uint8_t update_navigation_arrow_entity_rotation(dtFrame* frame, uint16_t id, float rotation){
+	for(uint8_t i = 0u; i < frame->entities_cnt; i++){
+		dtEntity* currEntity = (dtEntity*)frame->entities[i];
+		if((currEntity->main.id == id) && (currEntity->main.type == NAVIGATION_ARROW)){
+			currEntity->properties.NavigationArrow.rotation = rotation;
 			currEntity->status.status = RENDER_PENDING;
 			frame->status = RENDER_PENDING;
 			return PASS;

@@ -46,6 +46,7 @@ dtFrame menuFrame;
 dtFrame newGameFrame;
 dtFrame gpsDataFrame;
 dtFrame settingsFrame;
+dtFrame gamePlayFrame;
 
 uint8_t main_menu_previous_pos = 0u;
 
@@ -63,6 +64,8 @@ uint16_t gpsDataFrame_rectangle1ID;
 
 uint16_t settingsFrame_text1ID;
 uint16_t settingsFrame_rectangle1ID;
+
+uint16_t gamePlayFrame_navigation_arrowID;
 
 char latitude[MAX_TEXT_LEN] = {0u};
 char longitude[MAX_TEXT_LEN] = {0u};
@@ -157,6 +160,7 @@ void Init_new_game_frame(void){
 													strlen(MENU_TEXT_1),
 													PASS);
 
+	gamePlayFrame_navigation_arrowID = add_navigation_arrow_entity_to_frame(&newGameFrame, 44, 22, 40, 26, 0.0);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -337,6 +341,8 @@ void Geocacher_Handler(void){
 					/* New game */
 					LCD_set_current_frame(&newGameFrame);
 					mainState = NEW_GAME_FRAME;
+					KY040_set_enc_default_value(0u);
+					KY040_set_enc_limits(-50, 50u);
 				}else if(cur_enc == 1){
 					/* Gps data show */
 					LCD_set_current_frame(&gpsDataFrame);
@@ -369,8 +375,12 @@ void Geocacher_Handler(void){
 			if(button_pressed_flag){
 				/* For no let's go back to main menu in any case */
 				KY040_set_enc_default_value(main_menu_previous_pos);
+				KY040_set_enc_limits(0, 2u);
 				LCD_set_current_frame(&menuFrame);
 				mainState = MAIN_MENU_BEGIN;
+			}
+			if(encoder_changed_flag){
+				update_navigation_arrow_entity_rotation(&newGameFrame, gamePlayFrame_navigation_arrowID, cur_enc * 0.08);
 			}
 			break;
 		case GPS_DATA_FRAME:
@@ -379,6 +389,7 @@ void Geocacher_Handler(void){
 			if(button_pressed_flag){
 				/* For no let's go back to main menu in any case */
 				KY040_set_enc_default_value(main_menu_previous_pos);
+				KY040_set_enc_limits(0, 2u);
 				LCD_set_current_frame(&menuFrame);
 				mainState = MAIN_MENU_BEGIN;
 			}
