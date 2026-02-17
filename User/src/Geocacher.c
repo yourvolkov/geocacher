@@ -16,6 +16,14 @@
 #define MENU_TEXT_2    "CURRENT GPS DATA"
 #define MENU_TEXT_3    "SETTINGS"
 
+#define NEW_GAME_TEXT_1 "Enter coordinates:"
+#define NEW_GAME_TEXT_2 "Latitude"
+#define NEW_GAME_TEXT_3 "Longitude"
+
+#define START_TEXT "START!"
+#define OK_TEXT "OK"
+#define BACK_TEXT "BACK"
+
 #define LOW_SIG_MESSAGE " LOW SIGNAL!"
 
 #define MENU_RECTANGLE_HEIGHT	9u
@@ -55,8 +63,8 @@ uint16_t bitmap1ID;
 uint16_t text1ID, text2ID, text3ID;
 uint16_t rectangle1ID;
 
-uint16_t newGameFrame_text1ID;
-uint16_t newGameFrame_rectangle1ID;
+uint16_t newGameFrame_text1ID, newGameFrame_text2ID ,newGameFrame_text3ID,newGameFrame_text4ID, newGameFrame_text5ID,newGameFrame_text6ID, newGameFrame_text7ID, newGameFrame_text8ID;
+uint16_t newGameFrame_rectangle1ID, newGameFrame_rectangle2ID, newGameFrame_rectangle3ID, newGameFrame_rectangle4ID;
 
 uint16_t gpsDataFrame_titleTextID, gpsDataFrame_latitudeTextID, gpsDataFrame_LongitudetextID, gpsDataFrame_AltitudetextID, gpsDataFrame_SpeedTextID, gpsDataFrame_SattelitesTextID;
 uint16_t gpsDataFrame_serviceMessageTextID;
@@ -101,7 +109,8 @@ const uint8_t lcd_arrow[] = {
 
 uint8_t lcd_arrow_conv[2][24];
 
-
+uint8_t geocaching_latitude[12] = "00 00.000 N";
+uint8_t geocaching_longitude[13] = "000 00.000 E";
 /******************************************************************************/
 /****************************** Externs ***************************************/
 /******************************************************************************/
@@ -121,6 +130,10 @@ uint8_t center_text(uint8_t len_str){
 	return (127u - len_str * 6) / 2;
 }
 
+uint8_t get_end_pos_text(uint8_t x, uint8_t len_str){
+	return x + (len_str * 6) + 2u;
+}
+
 /*----------------------------------------------------------------------------*/
 void Init_start_frame(void){
 	bitmap1ID = add_bitmap_entity_to_frame(&startFrame, 45u, 0u, 48, 64, lcd_bitmap_inv);
@@ -134,33 +147,95 @@ void Init_main_menu_frame(void){
 										MAIN_MENU_TEXT_START_POS,
 										MENU_TEXT_1,
 										strlen(MENU_TEXT_1),
-										PASS);
+										PASS,
+										0u);
 	text2ID = add_text_entity_to_frame(&menuFrame,
 										center_text(strlen(MENU_TEXT_2)),
 										MAIN_MENU_TEXT_START_POS + MAIN_MENU_TEXT_GAP,
 										MENU_TEXT_2,
 										strlen(MENU_TEXT_2),
-										FAIL);
+										FAIL,
+										0u);
 	text3ID = add_text_entity_to_frame(&menuFrame,
 										center_text(strlen(MENU_TEXT_3)),
 										MAIN_MENU_TEXT_START_POS + MAIN_MENU_TEXT_GAP * 2,
 										MENU_TEXT_3,
 										strlen(MENU_TEXT_3),
-										FAIL);
+										FAIL,
+										0u);
 }
 
 /*----------------------------------------------------------------------------*/
 void Init_new_game_frame(void){
 	newGameFrame_rectangle1ID = add_rectangle_entity_to_frame(&newGameFrame, 0, 0, 127, MENU_RECTANGLE_HEIGHT, 0.0, PASS);
+	newGameFrame_rectangle2ID = add_rectangle_entity_to_frame(&newGameFrame, 51, 26, 57, 36, 0.0, PASS);
+	newGameFrame_rectangle3ID = add_rectangle_entity_to_frame(&newGameFrame, 15, 51, 58 , 63, 0.0, FAIL);
+	newGameFrame_rectangle4ID = add_rectangle_entity_to_frame(&newGameFrame, 68, 51, 112, 63, 0.0, FAIL);
 
 	newGameFrame_text1ID = add_text_entity_to_frame(&newGameFrame,
 													center_text(strlen(MENU_TEXT_1)),
 													1u,
 													MENU_TEXT_1,
 													strlen(MENU_TEXT_1),
-													PASS);
+													PASS,
+													0u);
 
-	gamePlayFrame_navigation_arrowID = add_navigation_arrow_entity_to_frame(&newGameFrame, 44, 22, 40, 26, 0.0);
+	newGameFrame_text2ID = add_text_entity_to_frame(&newGameFrame,
+													center_text(strlen(NEW_GAME_TEXT_1)),
+													16u,
+													NEW_GAME_TEXT_1,
+													strlen(NEW_GAME_TEXT_1),
+													FAIL,
+													0u);
+
+	newGameFrame_text3ID = add_text_entity_to_frame(&newGameFrame,
+													0u,
+													28u,
+													NEW_GAME_TEXT_2,
+													strlen(NEW_GAME_TEXT_2),
+													FAIL,
+													0u);
+
+	newGameFrame_text4ID = add_text_entity_to_frame(&newGameFrame,
+													0u,
+													38u,
+													NEW_GAME_TEXT_3,
+													strlen(NEW_GAME_TEXT_3),
+													FAIL,
+													0u);
+
+	newGameFrame_text5ID = add_text_entity_to_frame(&newGameFrame,
+													52u,
+													28u,
+													geocaching_latitude,
+													strlen(geocaching_latitude),
+													PASS,
+													1u);
+
+	newGameFrame_text6ID = add_text_entity_to_frame(&newGameFrame,
+													57u,
+													38u,
+													geocaching_longitude,
+													strlen(geocaching_longitude),
+													FAIL,
+													0u);
+
+	newGameFrame_text7ID = add_text_entity_to_frame(&newGameFrame,
+													20u,
+													54u,
+													START_TEXT,
+													strlen(START_TEXT),
+													FAIL,
+													0u);
+
+	newGameFrame_text8ID = add_text_entity_to_frame(&newGameFrame,
+													78u,
+													54u,
+													BACK_TEXT,
+													strlen(BACK_TEXT),
+													FAIL,
+													0u);
+
 }
 
 /*----------------------------------------------------------------------------*/
@@ -172,49 +247,56 @@ void Init_gps_data_frame(void){
 													1u,
 													MENU_TEXT_2,
 													strlen(MENU_TEXT_2),
-													PASS);
+													PASS,
+													0u);
 
 	gpsDataFrame_latitudeTextID = add_text_entity_to_frame(&gpsDataFrame,
 													0u,
 													GPS_DATA_START_POS,
 													latitude,
 													0u,
-													FAIL);
+													FAIL,
+													0u);
 
 	gpsDataFrame_LongitudetextID = add_text_entity_to_frame(&gpsDataFrame,
 													0u,
 													GPS_DATA_START_POS + MAIN_MENU_TEXT_GAP,
 													longitude,
 													0u,
-													FAIL);
+													FAIL,
+													0u);
 
 	gpsDataFrame_AltitudetextID = add_text_entity_to_frame(&gpsDataFrame,
 													0u,
 													GPS_DATA_START_POS + MAIN_MENU_TEXT_GAP * 2,
 													altitude,
 													0u,
-													FAIL);
+													FAIL,
+													0u);
 
 	gpsDataFrame_SpeedTextID = add_text_entity_to_frame(&gpsDataFrame,
 													0u,
 													GPS_DATA_START_POS + MAIN_MENU_TEXT_GAP * 3,
 													speed,
 													0u,
-													FAIL);
+													FAIL,
+													0u);
 
 	gpsDataFrame_SattelitesTextID = add_text_entity_to_frame(&gpsDataFrame,
 													0u,
 													GPS_DATA_START_POS + MAIN_MENU_TEXT_GAP * 4,
 													sat_amnt,
 													0u,
-													FAIL);
+													FAIL,
+													0u);
 
 	gpsDataFrame_serviceMessageTextID = add_text_entity_to_frame(&gpsDataFrame,
 																center_text(strlen(LOW_SIG_MESSAGE)),
 																28u,
 																LOW_SIG_MESSAGE,
 																strlen(LOW_SIG_MESSAGE),
-																PASS);
+																PASS,
+																0u);
 
 }
 
@@ -227,12 +309,27 @@ void Init_settings_frame(void){
 													1u,
 													MENU_TEXT_3,
 													strlen(MENU_TEXT_3),
-													PASS);
+													PASS,
+													0u);
 
 }
 
+/*----------------------------------------------------------------------------*/
+void Init_gameplay_frame(void){
+	newGameFrame_rectangle1ID = add_rectangle_entity_to_frame(&newGameFrame, 0, 0, 127, MENU_RECTANGLE_HEIGHT, 0.0, PASS);
 
+	newGameFrame_text1ID = add_text_entity_to_frame(&newGameFrame,
+													center_text(strlen(MENU_TEXT_1)),
+													1u,
+													MENU_TEXT_1,
+													strlen(MENU_TEXT_1),
+													PASS,
+													0u);
 
+	gamePlayFrame_navigation_arrowID = add_navigation_arrow_entity_to_frame(&newGameFrame, 44, 22, 40, 26, 0.0);
+}
+
+/*----------------------------------------------------------------------------*/
 void handle_gps_current_data_frame(void){
 	dtNMEACoordinate lati, longi;
 	float speed_f, alti;
@@ -357,17 +454,17 @@ void Geocacher_Handler(void){
 			if(encoder_changed_flag){
 				update_rectangle_entity_position(&menuFrame, rectangle1ID, 0, (20 + cur_enc * 10) - 1, 127, (20 + (cur_enc + 1) * 10 ) - 2);
 				if(cur_enc == 0){
-					update_text_entity_inversion(&menuFrame, text1ID, PASS);
-					update_text_entity_inversion(&menuFrame, text2ID, FAIL);
-					update_text_entity_inversion(&menuFrame, text3ID, FAIL);
+					update_text_entity_inversion(&menuFrame, text1ID, PASS, 0u);
+					update_text_entity_inversion(&menuFrame, text2ID, FAIL, 0u);
+					update_text_entity_inversion(&menuFrame, text3ID, FAIL, 0u);
 				}else if(cur_enc == 1){
-					update_text_entity_inversion(&menuFrame, text1ID, FAIL);
-					update_text_entity_inversion(&menuFrame, text2ID, PASS);
-					update_text_entity_inversion(&menuFrame, text3ID, FAIL);
+					update_text_entity_inversion(&menuFrame, text1ID, FAIL, 0u);
+					update_text_entity_inversion(&menuFrame, text2ID, PASS, 0u);
+					update_text_entity_inversion(&menuFrame, text3ID, FAIL, 0u);
 				}else{
-					update_text_entity_inversion(&menuFrame, text1ID, FAIL);
-					update_text_entity_inversion(&menuFrame, text2ID, FAIL);
-					update_text_entity_inversion(&menuFrame, text3ID, PASS);
+					update_text_entity_inversion(&menuFrame, text1ID, FAIL, 0u);
+					update_text_entity_inversion(&menuFrame, text2ID, FAIL, 0u);
+					update_text_entity_inversion(&menuFrame, text3ID, PASS, 0u);
 				}
 			}
 			break;

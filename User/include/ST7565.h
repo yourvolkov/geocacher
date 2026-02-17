@@ -36,7 +36,7 @@
 #define CS_PIN            LCD_CS_Pin
 #define CS_PORT           LCD_CS_GPIO_Port
 
-#define MAX_ENTITIES_ON_SINGLE_FRAME	10u
+#define MAX_ENTITIES_ON_SINGLE_FRAME	20u
 #define MAX_TEXT_LEN	21u
 /******************************************************************************/
 /****************************** Public types  *********************************/
@@ -84,10 +84,10 @@ void Display_Init(void);
 uint8_t LCD_set_current_frame(dtFrame* newFrame);
 dtFrame* LCD_get_current_frame(void);
 /* API for text entity */
-uint16_t add_text_entity_to_frame(dtFrame* frame, uint8_t x, uint8_t y, char* textPtr, uint8_t textLen, uint8_t isInversed);
+uint16_t add_text_entity_to_frame(dtFrame* frame, uint8_t x, uint8_t y, char* textPtr, uint8_t textLen, uint8_t isInversed, uint32_t inversionMask);
 uint8_t update_text_entity_position(dtFrame* frame, uint16_t id ,uint8_t x, uint8_t y);
 uint8_t update_text_entity_text(dtFrame* frame, uint16_t id ,char* textPtr, uint8_t textLen);
-uint8_t update_text_entity_inversion(dtFrame* frame, uint16_t id, uint8_t isInversed);
+uint8_t update_text_entity_inversion(dtFrame* frame, uint16_t id, uint8_t isInversed, uint32_t inversionMask);
 
 uint16_t add_bitmap_entity_to_frame(dtFrame* frame, uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint8_t* bitmap);
 uint8_t update_bitmap_entity_position(dtFrame* frame, uint16_t id ,uint8_t x, uint8_t y);

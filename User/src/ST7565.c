@@ -49,9 +49,8 @@
 
 #define HAL_TIMEOUT    10u // 10ms
 #define _135_GRAD_TO_RAD (2.35619f)
-#define MAX_ENTITIES_ON_SINGLE_FRAME	10u
 #define MAX_PROPERTY_STRUCT_SIZE  12u
-#define MAX_ENTITIES	25u
+#define MAX_ENTITIES	50u
 
 //#define LCD_DEBUG
 /******************************************************************************/
@@ -108,11 +107,12 @@ typedef struct{
 }dtEntityStatus;
 
 /*----------------------------------------------------------------------------*/
-typedef struct{ // size 8
+typedef struct{ // size 12
 	char* text;
 	uint8_t textLen;
 	dtPoint textStartPoint;
 	uint8_t isInversed;
+	uint32_t inversionMask;
 }dtPropertyText;
 
 typedef struct{ // size 8
@@ -190,7 +190,7 @@ void LCD_draw_pixel(uint8_t x, uint8_t y);
 void LCD_clear_pixel(uint8_t x, uint8_t y);
 void LCD_draw_line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, uint8_t isInversed);
 
-dtReturnRenderArea LCD_print(uint8_t cursorX, uint8_t cursorY, char* line, size_t len, uint8_t isInversed);
+dtReturnRenderArea LCD_print(uint8_t cursorX, uint8_t cursorY, char* line, size_t len, uint8_t isInversed, uint32_t inversionMask);
 dtReturnRenderArea LCD_draw_bitmap(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint8_t* bitmap);
 dtReturnRenderArea LCD_draw_rectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, float rotation, uint8_t isFilled);
 /******************************************************************************/
@@ -462,7 +462,7 @@ uint8_t LCD_get_X_of_point_on_line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y
 }
 
 /*----------------------------------------------------------------------------*/
-dtReturnRenderArea LCD_print(uint8_t cursorX, uint8_t cursorY, char* line, size_t len, uint8_t isInversed){
+dtReturnRenderArea LCD_print(uint8_t cursorX, uint8_t cursorY, char* line, size_t len, uint8_t isInversed, uint32_t inversionMask){
 	dtReturnRenderArea ret_render_area = {0u, 0u, 0u, 0u};
 	if(line != NULL && (cursorY + 8 < LCD_LINE_AMNT ) && cursorX < LCD_COLUMN_AMNT){
 		uint8_t EOL = cursorX + len * (FONT_CHAR_WIDTH + 1);
@@ -481,7 +481,14 @@ dtReturnRenderArea LCD_print(uint8_t cursorX, uint8_t cursorY, char* line, size_
 		for(uint8_t i = 0; i < len; i++){
 			uint8_t pos = cursorX + (i * (FONT_CHAR_WIDTH + 1));
 			if(pos + (FONT_CHAR_WIDTH + 1) < LCD_COLUMN_AMNT){
-				if(!isInversed){
+				uint8_t isCharInversed = FAIL;
+				if((i < 32) && (isInversed)){
+				 	if((inversionMask & (1 << i)) || (inversionMask == 0u)){
+				 		isCharInversed = PASS;
+				 	}
+				}
+
+				if(!isInversed || (isInversed && !isCharInversed)){
 					if(!page_tilt){
 						memcpy(&LCD_buf[curr_page][pos], &font_data[FONT_CHAR_WIDTH * (uint8_t)line[i]], FONT_CHAR_WIDTH);
 						LCD_buf[curr_page][pos + FONT_CHAR_WIDTH] = 0u; /* Space between chars */
@@ -825,6 +832,22 @@ dtReturnRenderArea LCD_draw_rectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_
 			LCD_draw_line(x2, y1, x2, y2, FAIL);
 			LCD_draw_line(x2, y2, x1, y2, FAIL);
 			LCD_draw_line(x1, y2, x1, y1, FAIL);
+
+			if(x1 > x2){
+				ret_render_area.x1 = x2;
+				ret_render_area.x2 = x1;
+			}else{
+				ret_render_area.x1 = x1;
+				ret_render_area.x2 = x2;
+			}
+
+			if(y1 > y2){
+				ret_render_area.y1 = y2;
+				ret_render_area.y2 = y1;
+			}else{
+				ret_render_area.y1 = y1;
+				ret_render_area.y2 = y2;
+			}
 		}else{
 			uint8_t lines_to_draw = 0u;
 			uint8_t len = 0u;
@@ -1144,6 +1167,7 @@ void LCD_updateScreen(void){
 			pageEnd = LCD_PAGES_AMNT - 1;
 		}
 		uint8_t len = lineEnd - lineBegin;
+		len++; // By doing this the updated area now includes the last column of pixels as well
 		for(uint8_t currPage = pageBegin; currPage <= pageEnd; currPage++){
 			LCD_sendCmd(CMD_DISPLAY_SET_PAGE(currPage));
 			LCD_sendCmd(CMD_DISPLAY_SET_COLUMN_L(lineBegin));
@@ -1174,6 +1198,7 @@ void LCD_clearArea(dtPoint LowerVertex, dtPoint HigherVertex){
 		uint8_t Ypos_within_begin_page = LowerVertex.y % PAGE_LEN;
 		uint8_t Ypos_within_end_page = HigherVertex.y % PAGE_LEN;
 		uint8_t area_len = HigherVertex.x - LowerVertex.x;
+		area_len++; // By doing this the cleared area now includes the last column of pixels as well
 		uint8_t page_tmp = 0u;
 		uint8_t mask_begin = 0u;
 		uint8_t mask_end = 0u;
@@ -1308,7 +1333,8 @@ void render_entity(void* entity, uint8_t isForceRender){
 									currEntity->properties.Text.textStartPoint.y,
 									currEntity->properties.Text.text,
 									currEntity->properties.Text.textLen,
-									currEntity->properties.Text.isInversed);
+									currEntity->properties.Text.isInversed,
+									currEntity->properties.Text.inversionMask);
 
 		}else if(currEntity->main.type == RECTANGLE){
 			/* Render rectangle */
@@ -1394,10 +1420,10 @@ uint8_t free_entity(dtEntity* entityPtr){
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
-uint16_t add_text_entity_to_frame(dtFrame* frame, uint8_t x, uint8_t y, char* textPtr, uint8_t textLen, uint8_t isInversed){
+uint16_t add_text_entity_to_frame(dtFrame* frame, uint8_t x, uint8_t y, char* textPtr, uint8_t textLen, uint8_t isInversed, uint32_t inversionMask){
 	dtEntity* newEntity = NULL;
 	uint16_t retID = 0xFFFFu;
-	if(frame->entities_cnt < MAX_ENTITIES_ON_SINGLE_FRAME - 1){
+	if(frame->entities_cnt < MAX_ENTITIES_ON_SINGLE_FRAME){
 		if(allocate_entity(&newEntity) == PASS){
 			newEntity->main.type = TEXT;
 			newEntity->properties.Text.textStartPoint.x = x;
@@ -1405,6 +1431,7 @@ uint16_t add_text_entity_to_frame(dtFrame* frame, uint8_t x, uint8_t y, char* te
 			newEntity->properties.Text.text = textPtr;
 			newEntity->properties.Text.textLen = textLen;
 			newEntity->properties.Text.isInversed = isInversed;
+			newEntity->properties.Text.inversionMask = inversionMask;
 
 			newEntity->status.status = NOT_RENDERED;
 
@@ -1445,11 +1472,12 @@ uint8_t update_text_entity_text(dtFrame* frame, uint16_t id ,char* textPtr, uint
 	return FAIL;
 }
 /*----------------------------------------------------------------------------*/
-uint8_t update_text_entity_inversion(dtFrame* frame, uint16_t id, uint8_t isInversed){
+uint8_t update_text_entity_inversion(dtFrame* frame, uint16_t id, uint8_t isInversed, uint32_t inversionMask){
 	for(uint8_t i = 0u; i < frame->entities_cnt; i++){
 		dtEntity* currEntity = (dtEntity*)frame->entities[i];
 		if((currEntity->main.id == id) && (currEntity->main.type == TEXT)){
 			currEntity->properties.Text.isInversed = isInversed;
+			currEntity->properties.Text.inversionMask = inversionMask;
 			currEntity->status.status = RENDER_PENDING;
 			frame->status = RENDER_PENDING;
 			return PASS;
