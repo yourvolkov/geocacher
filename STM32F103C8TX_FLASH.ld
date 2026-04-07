@@ -45,7 +45,8 @@ _Min_Stack_Size = 0x800 ; /* required amount of stack */
 MEMORY
 {
   RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 20K
-  FLASH    (rx)    : ORIGIN = 0x8000000,   LENGTH = 64K
+  FLASH    (rx)    : ORIGIN = 0x8000000,   LENGTH = 63K
+  FEE    (rx)    : ORIGIN = 0x800FC00,   LENGTH = 1K
 }
 
 /* Sections */
@@ -127,6 +128,16 @@ SECTIONS
     PROVIDE_HIDDEN (__fini_array_end = .);
     . = ALIGN(4);
   } >FLASH
+
+  /* Flash EEPROM emulation */
+  .fee_sec :
+  {
+    . = ALIGN(4);
+    *(.fee_sec)
+    . = ALIGN(4);
+    _etext = .;        /* define a global symbols at end of code */
+  } >FEE
+
 
   /* Used by the startup to initialize data */
   _sidata = LOADADDR(.data);

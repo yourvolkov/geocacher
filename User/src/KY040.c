@@ -18,7 +18,7 @@
 
 #define JITTER_DEBOUNCE_BUTTON		30u
 #define JITTER_DEBOUNCE_ENCODER		10u
-#define JITTER_POST_DEBOUNCE_ENCODER 5u
+#define JITTER_POST_DEBOUNCE_ENCODER 20u
 
 #define ENCODER_DEBOUNCE_SAMPLES_AMNT 3u
 /******************************************************************************/

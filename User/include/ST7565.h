@@ -93,10 +93,11 @@ uint16_t add_bitmap_entity_to_frame(dtFrame* frame, uint8_t x, uint8_t y, uint8_
 uint8_t update_bitmap_entity_position(dtFrame* frame, uint16_t id ,uint8_t x, uint8_t y);
 uint8_t update_bitmap_entity_bitmap(dtFrame* frame, uint16_t id ,uint8_t width, uint8_t height, uint8_t* bitmap);
 
-uint16_t add_rectangle_entity_to_frame(dtFrame* frame, uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, float rotation, uint8_t isFilled);
+uint16_t add_rectangle_entity_to_frame(dtFrame* frame, uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, float rotation, uint8_t isFilled, uint8_t isInversed);
 uint8_t update_rectangle_entity_position(dtFrame* frame, uint16_t id, uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2);
 uint8_t update_rectangle_entity_rotation(dtFrame* frame, uint16_t id, float rotation);
 uint8_t update_rectangle_entity_filled(dtFrame* frame, uint16_t id, uint8_t isFilled);
+uint8_t update_rectangle_entity_inversion(dtFrame* frame, uint16_t id, uint8_t isInversed);
 
 uint16_t add_navigation_arrow_entity_to_frame(dtFrame* frame, uint8_t x, uint8_t y, uint8_t width, uint8_t height, float rotation);
 uint8_t update_navigation_arrow_entity_position(dtFrame* frame, uint16_t id, uint8_t x, uint8_t y);

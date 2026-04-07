@@ -69,6 +69,10 @@ void Error_Handler(void);
 #define LCD_RS_GPIO_Port GPIOA
 #define LCD_MOSI_Pin GPIO_PIN_7
 #define LCD_MOSI_GPIO_Port GPIOA
+#define GYRO_SCL_Pin GPIO_PIN_10
+#define GYRO_SCL_GPIO_Port GPIOB
+#define GYRO_SDA_Pin GPIO_PIN_11
+#define GYRO_SDA_GPIO_Port GPIOB
 #define GPS_TX_Pin GPIO_PIN_9
 #define GPS_TX_GPIO_Port GPIOA
 #define GPS_RX_Pin GPIO_PIN_10

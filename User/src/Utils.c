@@ -145,8 +145,24 @@ float _atof(uint8_t* str){
 void print_float(char* str, float num, uint8_t precision){
 	int int_part = num, fract_part = 0u;
 	num -= (float)int_part; /* only fract part left */
+	sprintf(str, "%d.", int_part);
 	fract_part = num * _pow(10u, precision);
-	sprintf(str, "%d.%d", int_part, fract_part);
+	for(int8_t i = precision - 1; i >= 0; i--){
+		int pow_dec = _pow(10u, i);
+		int dec_val = fract_part / pow_dec;
+		uint8_t tmp_str[2u];
+		if (dec_val == 0){
+			/* put 0 */
+			tmp_str[0u] = '0';
+			tmp_str[1u] = '\0';
+		}else{
+			/* put val */
+			tmp_str[0u] = '0' + (dec_val % 10);
+			tmp_str[1u] = '\0';
+		}
+		strcat(str, tmp_str);
+	}
+
 }
 
 /*----------------------------------------------------------------------------*/

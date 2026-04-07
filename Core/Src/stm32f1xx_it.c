@@ -25,6 +25,7 @@
 #include "NMEA.h"
 #include "Utils.h"
 #include "KY040.h"
+#include "Geocacher.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -188,6 +189,7 @@ void SysTick_Handler(void)
 {
   /* USER CODE BEGIN SysTick_IRQn 0 */
 	_Delay1ms_tick_hanlder();
+	Geocacher_TimerHandler();
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
   /* USER CODE BEGIN SysTick_IRQn 1 */

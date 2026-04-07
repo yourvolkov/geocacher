@@ -192,7 +192,7 @@ void LCD_draw_line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, uint8_t isInv
 
 dtReturnRenderArea LCD_print(uint8_t cursorX, uint8_t cursorY, char* line, size_t len, uint8_t isInversed, uint32_t inversionMask);
 dtReturnRenderArea LCD_draw_bitmap(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint8_t* bitmap);
-dtReturnRenderArea LCD_draw_rectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, float rotation, uint8_t isFilled);
+dtReturnRenderArea LCD_draw_rectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, float rotation, uint8_t isFilled, uint8_t isInversed);
 /******************************************************************************/
 /********************** Platform dependent functions **************************/
 /******************************************************************************/
@@ -699,7 +699,7 @@ void LCD_draw_line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, uint8_t isInv
 }
 /*----------------------------------------------------------------------------*/
 
-void fill_rectangle(dtPoint rectangle_vertices[4]){
+void fill_rectangle(dtPoint rectangle_vertices[4], uint8_t isInversed){
 	uint8_t lines_to_draw = 0u;
 	uint8_t X1 = 0u, X2 = 0u;
 	dtPoint upper_pointY, lower_pointY, upper_pointX, lower_pointX;
@@ -740,7 +740,7 @@ void fill_rectangle(dtPoint rectangle_vertices[4]){
 			X1 = lower_pointX.x;
 			X2 = upper_pointX.x;
 		}
-		LCD_draw_line(X1, currY, X2, currY, FAIL);
+		LCD_draw_line(X1, currY, X2, currY, isInversed);
 	}
 }
 /*----------------------------------------------------------------------------*/
@@ -787,7 +787,7 @@ void fill_triangle(dtPoint triangle_vertices[3], uint8_t isInversed){
 }
 /*----------------------------------------------------------------------------*/
 
-dtReturnRenderArea LCD_draw_rectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, float rotation, uint8_t isFilled){
+dtReturnRenderArea LCD_draw_rectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, float rotation, uint8_t isFilled, uint8_t isInversed){
 	dtReturnRenderArea ret_render_area = {0u, 0u, 0u, 0u};
 	uint8_t pageBegin = 0u;
 	uint8_t pageEnd = 0u;
@@ -809,12 +809,12 @@ dtReturnRenderArea LCD_draw_rectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_
 		rotate_point(x1, y2, centerX, centerY, _sin, _cos, &rectangle_vertices[3u].x, &rectangle_vertices[3u].y);
 
 		if(!isFilled){
-			LCD_draw_line(rectangle_vertices[0u].x, rectangle_vertices[0u].y, rectangle_vertices[1u].x, rectangle_vertices[1u].y, FAIL);
-			LCD_draw_line(rectangle_vertices[1u].x, rectangle_vertices[1u].y, rectangle_vertices[2u].x, rectangle_vertices[2u].y, FAIL);
-			LCD_draw_line(rectangle_vertices[2u].x, rectangle_vertices[2u].y, rectangle_vertices[3u].x, rectangle_vertices[3u].y, FAIL);
-			LCD_draw_line(rectangle_vertices[3u].x, rectangle_vertices[3u].y, rectangle_vertices[0u].x, rectangle_vertices[0u].y, FAIL);
+			LCD_draw_line(rectangle_vertices[0u].x, rectangle_vertices[0u].y, rectangle_vertices[1u].x, rectangle_vertices[1u].y, isInversed);
+			LCD_draw_line(rectangle_vertices[1u].x, rectangle_vertices[1u].y, rectangle_vertices[2u].x, rectangle_vertices[2u].y, isInversed);
+			LCD_draw_line(rectangle_vertices[2u].x, rectangle_vertices[2u].y, rectangle_vertices[3u].x, rectangle_vertices[3u].y, isInversed);
+			LCD_draw_line(rectangle_vertices[3u].x, rectangle_vertices[3u].y, rectangle_vertices[0u].x, rectangle_vertices[0u].y, isInversed);
 		}else{
-			fill_rectangle(rectangle_vertices);
+			fill_rectangle(rectangle_vertices, isInversed);
 		}
 
 		/* Calculate a render area by x */
@@ -828,10 +828,10 @@ dtReturnRenderArea LCD_draw_rectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_
 
 	}else{
 		if(!isFilled){
-			LCD_draw_line(x1, y1, x2, y1, FAIL);
-			LCD_draw_line(x2, y1, x2, y2, FAIL);
-			LCD_draw_line(x2, y2, x1, y2, FAIL);
-			LCD_draw_line(x1, y2, x1, y1, FAIL);
+			LCD_draw_line(x1, y1, x2, y1, isInversed);
+			LCD_draw_line(x2, y1, x2, y2, isInversed);
+			LCD_draw_line(x2, y2, x1, y2, isInversed);
+			LCD_draw_line(x1, y2, x1, y1, isInversed);
 
 			if(x1 > x2){
 				ret_render_area.x1 = x2;
@@ -880,7 +880,7 @@ dtReturnRenderArea LCD_draw_rectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_
 				ret_render_area.x2 = x2;
 			}
 			for(uint8_t i = y_start; i <= y_start + lines_to_draw; i++){
-				LCD_draw_line(x_start, i, x_start + len, i, FAIL);
+				LCD_draw_line(x_start, i, x_start + len, i, isInversed);
 			}
 		}
 	}
@@ -1024,7 +1024,7 @@ void LCD_draw_arrow(uint8_t x, uint8_t y, uint8_t width, uint8_t height, float r
 
 
 	fill_triangle(rotated_vertices, FAIL);
-	fill_rectangle(rotated_rectangle_vertices);
+	fill_rectangle(rotated_rectangle_vertices, FAIL);
 
 }
 /*----------------------------------------------------------------------------*/
@@ -1343,7 +1343,8 @@ void render_entity(void* entity, uint8_t isForceRender){
 											currEntity->properties.Rectangle.vertex2.x,
 											currEntity->properties.Rectangle.vertex2.y,
 											currEntity->properties.Rectangle.rotation,
-											currEntity->properties.Rectangle.isFilled);
+											currEntity->properties.Rectangle.isFilled,
+											currEntity->properties.Rectangle.isInversed);
 		}else if(currEntity->main.type == BITMAP){
 			/* Render bitmap */
 			RenderArea = LCD_draw_bitmap(	currEntity->properties.Bitmap.bitmapStartPoint.x,
@@ -1542,7 +1543,7 @@ uint8_t update_bitmap_entity_bitmap(dtFrame* frame, uint16_t id ,uint8_t width, 
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
-uint16_t add_rectangle_entity_to_frame(dtFrame* frame, uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, float rotation, uint8_t isFilled){
+uint16_t add_rectangle_entity_to_frame(dtFrame* frame, uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, float rotation, uint8_t isFilled, uint8_t isInversed){
 	dtEntity* newEntity = NULL;
 	uint16_t retID = 0xFFFFu;
 	if(frame->entities_cnt < MAX_ENTITIES_ON_SINGLE_FRAME - 1){
@@ -1554,6 +1555,7 @@ uint16_t add_rectangle_entity_to_frame(dtFrame* frame, uint8_t x1, uint8_t y1, u
 			newEntity->properties.Rectangle.vertex2.y = y2;
 			newEntity->properties.Rectangle.rotation = rotation;
 			newEntity->properties.Rectangle.isFilled = isFilled;
+			newEntity->properties.Rectangle.isInversed = isInversed;
 
 			newEntity->status.status = NOT_RENDERED;
 
@@ -1607,7 +1609,19 @@ uint8_t update_rectangle_entity_filled(dtFrame* frame, uint16_t id, uint8_t isFi
 	}
 	return FAIL;
 }
-
+/*----------------------------------------------------------------------------*/
+uint8_t update_rectangle_entity_inversion(dtFrame* frame, uint16_t id, uint8_t isInversed){
+	for(uint8_t i = 0u; i < frame->entities_cnt; i++){
+		dtEntity* currEntity = (dtEntity*)frame->entities[i];
+		if((currEntity->main.id == id) && (currEntity->main.type == RECTANGLE)){
+			currEntity->properties.Rectangle.isInversed = isInversed;
+			currEntity->status.status = RENDER_PENDING;
+			frame->status = RENDER_PENDING;
+			return PASS;
+		}
+	}
+	return FAIL;
+}
 
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
